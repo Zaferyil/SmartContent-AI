@@ -68,6 +68,22 @@ netlify env:set IG_USER_ID "..."
 
 Yayına alırken `ALLOWED_ORIGIN` değişkenini de site adresine ayarla; aksi halde fonksiyonları herhangi bir site çağırabilir.
 
+## `netlify dev` çöküyorsa
+
+```
+Port 3000 is in use, trying another one...
+Error: Netlify CLI has terminated unexpectedly.
+Error: read ECONNRESET
+```
+
+Önceki çalışmadan kalan bir süreç 3000 portunu tutuyor. Netlify o porta bağlanamayıp çöküyor. Kalıntıyı temizle:
+
+```bash
+lsof -ti:3000 | xargs kill -9
+```
+
+Sonra `npx netlify dev`. Vite artık `strictPort` ile çalıştığı için port doluysa sessizce kaymak yerine açık hata veriyor.
+
 ## Sık karşılaşılan hatalar
 
 | Meta kodu | Anlamı | Çözüm |
