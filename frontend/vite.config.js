@@ -1,16 +1,29 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// `netlify dev` runs Vite behind its own proxy and sets VITE_PORT=3000 so the
+// two do not collide. Run directly (npm run dev), Vite takes 8888 itself —
+// the port the R2 bucket's CORS policy already allows — and proxies function
+// calls to `netlify functions:serve`, skipping the Netlify proxy entirely.
+// That proxy is what crashes with ECONNRESET on some macOS + Node setups:
+// https://github.com/netlify/cli/issues/7747
+const PORT = Number(process.env.VITE_PORT) || 8888
+const FUNCTIONS_PORT = Number(process.env.FUNCTIONS_PORT) || 9999
+
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000,
+    port: PORT,
     host: true,
-    // netlify.toml proxies to targetPort 3000. Without strictPort, Vite quietly
-    // moves to 3001 when 3000 is busy (a leftover process from a crashed run),
-    // Netlify keeps proxying to 3000, and the CLI dies with ECONNRESET. Failing
-    // loudly here names the real problem instead.
+    // Without this Vite quietly moves to the next free port while whatever
+    // proxies to it keeps using the old one — a confusing failure.
     strictPort: true,
+    proxy: {
+      '/.netlify/functions': {
+        target: `http://localhost:${FUNCTIONS_PORT}`,
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

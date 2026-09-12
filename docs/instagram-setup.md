@@ -21,7 +21,7 @@ cp .env.example .env
 ```bash
 npm install
 npm install --prefix frontend
-npx netlify dev
+npm run dev
 ```
 
 > Netlify CLI, projenin devDependency'si olarak geliyor — ayrıca kurmana gerek
@@ -68,21 +68,43 @@ netlify env:set IG_USER_ID "..."
 
 Yayına alırken `ALLOWED_ORIGIN` değişkenini de site adresine ayarla; aksi halde fonksiyonları herhangi bir site çağırabilir.
 
-## `netlify dev` çöküyorsa
-
-```
-Port 3000 is in use, trying another one...
-Error: Netlify CLI has terminated unexpectedly.
-Error: read ECONNRESET
-```
-
-Önceki çalışmadan kalan bir süreç 3000 portunu tutuyor. Netlify o porta bağlanamayıp çöküyor. Kalıntıyı temizle:
+## Yerel çalıştırma
 
 ```bash
-lsof -ti:3000 | xargs kill -9
+npm run dev
 ```
 
-Sonra `npx netlify dev`. Vite artık `strictPort` ile çalıştığı için port doluysa sessizce kaymak yerine açık hata veriyor.
+Bu iki süreci birlikte başlatır:
+
+| | Ne yapar | Port |
+|---|---|---|
+| `dev:functions` | `netlify functions:serve` — sadece fonksiyonlar | 9999 |
+| `dev:app` | Vite — arayüz, fonksiyon çağrılarını 9999'a yönlendirir | 8888 |
+
+Adres yine **http://localhost:8888** — R2'deki CORS kuralı bu portu tanıyor, değiştirme.
+
+### Neden `netlify dev` değil
+
+`netlify dev` kendi proxy katmanını araya koyuyor ve bazı macOS + Node kurulumlarında açılıştan hemen sonra çöküyor:
+
+```
+Error: Netlify CLI has terminated unexpectedly.
+Error: read ECONNRESET at TCP.onStreamRead
+```
+
+Bu netlify-cli'nin bilinen, çözülmemiş bir hatası ([netlify/cli#7747](https://github.com/netlify/cli/issues/7747), [#7387](https://github.com/netlify/cli/issues/7387), [#7952](https://github.com/netlify/cli/issues/7952)). Node sürümünü düşürmek önerilen çözüm ama her kurulumda işe yaramıyor.
+
+`npm run dev` o proxy'yi tamamen atlıyor — Vite zaten bir proxy'ye sahip, onu kullanıyoruz. Yayındaki davranış değişmiyor; Netlify sunucusu fonksiyonları kendi servis ediyor.
+
+`netlify dev` senin makinende çalışıyorsa `npm run dev:netlify` ile onu da kullanabilirsin.
+
+### Port meşgulse
+
+```bash
+lsof -ti:8888,9999 | xargs kill -9
+```
+
+Vite `strictPort` ile çalışıyor: port doluysa sessizce başka porta kaymak yerine açık hata verir.
 
 ## Sık karşılaşılan hatalar
 
