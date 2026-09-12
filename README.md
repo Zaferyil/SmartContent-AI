@@ -11,7 +11,7 @@ SmartContent Hub, Instagram, Facebook, TikTok, Twitter, LinkedIn ve daha fazla p
 - ✅ **Intelligent Scheduling**: Akıllı post zamanlama ve dağıtım
 - ✅ **Analytics Dashboard**: Tüm platformlar için birleşik analytics
 - ✅ **PWA Support**: Çevrimdışı çalışma, mobil kurulum
-- ✅ **Multi-Language**: Türkçe, Almanca, İngilizce desteği
+- ✅ **Multi-Language**: İngilizce (varsayılan) ve Almanca
 - ✅ **Real-time Sync**: Tüm platformlar senkronize
 
 ## 🏗️ Teknoloji Stack

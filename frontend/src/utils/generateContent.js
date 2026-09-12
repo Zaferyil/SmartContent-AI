@@ -5,18 +5,6 @@
  */
 
 const TEMPLATES = {
-  tr: {
-    caption: (topic, tone) =>
-      `${tone} · ${topic}\n\n${topic} konusunda bilmen gereken her şeyi tek bir gönderide topladık. Küçük bir değişiklik, büyük bir fark yaratır.\n\nSen bu konuda ne düşünüyorsun? Yorumlarda buluşalım 👇`,
-    hashtags: (topic) =>
-      `#${slug(topic)} #icerikuretimi #sosyalmedya #dijitalpazarlama #yapayzeka #markabilinci #busineshacks #girisimcilik #contentcreator #smartcontentai`,
-    hook: (topic) =>
-      `Çoğu kişi ${topic} konusunda aynı hatayı yapıyor.\n\nVe farkında bile değiller.\n\nAşağıda 3 maddede anlatıyorum 👇`,
-    cta: (topic) =>
-      `${topic} için doğru zaman şimdi.\n\nProfilindeki bağlantıya tıkla, ilk adımı bugün at.\n\n→ Sınırlı kontenjan`,
-    thread: (topic) =>
-      `${topic} hakkında 5 maddelik rehber:\n\n1. Temeli doğru kur\n2. Ölçmediğin şeyi yönetemezsin\n3. Tutarlılık, mükemmeliyetten önemli\n4. Kitleni dinle, varsayma\n5. Tekrarlanabilir bir sistem kur\n\nDetaylar için kaydet 🔖`,
-  },
   de: {
     caption: (topic, tone) =>
       `${tone} · ${topic}\n\nAlles, was du über ${topic} wissen musst – in einem Beitrag. Eine kleine Änderung macht oft den größten Unterschied.\n\nWie siehst du das? Schreib es in die Kommentare 👇`,

@@ -1,7 +1,7 @@
 {
   "name": "SmartContentAI — AI Social Media Manager",
   "short_name": "SmartContentAI",
-  "description": "Yapay zeka destekli çoklu platform sosyal medya içerik yönetimi",
+  "description": "AI-powered multi-platform social media content management",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
