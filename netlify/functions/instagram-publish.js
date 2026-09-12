@@ -1,4 +1,11 @@
-import { json, CORS, requireCredentials, graph, waitForContainer } from '../lib/instagram.js'
+import {
+  json,
+  CORS,
+  requireCredentials,
+  graph,
+  isContainerReady,
+  publishContainer,
+} from '../lib/instagram.js'
 
 const MAX_CAPTION = 2200
 
@@ -70,21 +77,16 @@ export const handler = async (event) => {
 
     const container = await graph(`${userId}/media`, { method: 'POST', params, token })
 
-    // Step 2 — wait for processing, then publish.
-    await waitForContainer(container.id, token)
+    // Step 2 — one status check, never a wait loop. An image is normally ready
+    // straight away, so the common case finishes in this single request; when it
+    // is not, the caller polls instagram-publish-finish instead of this function
+    // sitting on the clock until Netlify cuts it off at 10s.
+    if (await isContainerReady(container.id, token)) {
+      const mediaId = await publishContainer(container.id, userId, token)
+      return json(200, { ok: true, done: true, postType, mediaId, containerId: container.id })
+    }
 
-    const published = await graph(`${userId}/media_publish`, {
-      method: 'POST',
-      params: { creation_id: container.id },
-      token,
-    })
-
-    return json(200, {
-      ok: true,
-      postType,
-      mediaId: published.id,
-      containerId: container.id,
-    })
+    return json(202, { ok: true, done: false, postType, containerId: container.id })
   } catch (error) {
     console.error('Instagram publish failed:', error.message)
     return json(error.statusCode || 500, {

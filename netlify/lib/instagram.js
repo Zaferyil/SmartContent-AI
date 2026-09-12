@@ -82,31 +82,33 @@ export async function graph(path, { method = 'GET', params = {}, token } = {}) {
  *
  * Images normally report FINISHED on the very first check, so the first poll
  * happens with no delay. Video and reels can take far longer than a synchronous
- * Netlify function is allowed to run (10s on the free plan), which is why the
- * budget here is deliberately small — long media belongs in a `-background`
- * function, where the cap is 15 minutes.
+ * Netlify function is allowed to run (10s on the free plan), so nothing here
+ * ever waits in a loop — the caller polls instead.
+ *
+ * @returns true when the container is ready to publish, false while it is still
+ *          processing. Throws if Instagram gave up on the media.
  */
-export async function waitForContainer(containerId, token, { attempts = 5, delayMs = 1500 } = {}) {
-  for (let i = 0; i < attempts; i++) {
-    if (i > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
+export async function isContainerReady(containerId, token) {
+  const { status_code: status } = await graph(containerId, {
+    params: { fields: 'status_code' },
+    token,
+  })
 
-    const { status_code: status } = await graph(containerId, {
-      params: { fields: 'status_code' },
-      token,
-    })
-
-    if (status === 'FINISHED') return
-    if (status === 'ERROR' || status === 'EXPIRED') {
-      const error = new Error(`Media processing failed with status ${status}`)
-      error.statusCode = 502
-      throw error
-    }
+  if (status === 'FINISHED') return true
+  if (status === 'ERROR' || status === 'EXPIRED') {
+    const error = new Error(`Media processing failed with status ${status}`)
+    error.statusCode = 502
+    throw error
   }
+  return false
+}
 
-  const error = new Error(
-    'Media was still processing when the function ran out of time. ' +
-      'Video and reels need a background function.'
-  )
-  error.statusCode = 504
-  throw error
+/** Second half of the two-step publish: turns a finished container into a post. */
+export async function publishContainer(containerId, userId, token) {
+  const published = await graph(`${userId}/media_publish`, {
+    method: 'POST',
+    params: { creation_id: containerId },
+    token,
+  })
+  return published.id
 }

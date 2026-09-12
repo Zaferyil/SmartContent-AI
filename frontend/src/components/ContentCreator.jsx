@@ -15,6 +15,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
 import { generateContent } from '../utils/generateContent'
+import { publishPost } from '../utils/publishPost'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
 
@@ -41,6 +42,7 @@ export default function ContentCreator({ selected, notify }) {
   const [copied, setCopied] = useState(false)
   const [imageUrl, setImageUrl] = useState(null)
   const [publishing, setPublishing] = useState(false)
+  const [waiting, setWaiting] = useState(false)
   const [postType, setPostType] = useState('FEED')
 
   const run = async () => {
@@ -59,20 +61,18 @@ export default function ContentCreator({ selected, notify }) {
     if (!imageUrl) return notify(t.create.media.needImage, 'warn')
 
     setPublishing(true)
+    setWaiting(false)
     try {
-      const response = await fetch('/.netlify/functions/instagram-publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl, caption: result, postType }),
-      })
-      const data = await response.json()
-
-      if (!response.ok || !data.ok) throw new Error(data.error || t.create.media.publishFailed)
+      await publishPost(
+        { imageUrl, caption: result, postType },
+        { onProgress: () => setWaiting(true) }
+      )
       notify(t.create.media.published)
     } catch (error) {
       notify(`${t.create.media.publishFailed} ${error.message}`, 'warn')
     } finally {
       setPublishing(false)
+      setWaiting(false)
     }
   }
 
@@ -295,7 +295,7 @@ export default function ContentCreator({ selected, notify }) {
               {publishing ? (
                 <>
                   <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
-                  {t.create.media.publishing}
+                  {waiting ? t.create.media.processing : t.create.media.publishing}
                 </>
               ) : (
                 <>

@@ -92,8 +92,26 @@ curl -X POST http://localhost:8888/.netlify/functions/instagram-publish \
   -d '{"postType":"STORY","imageUrl":"https://picsum.photos/1080/1920"}'
 ```
 
+## Yayınlama neden iki adımlı
+
+Netlify'ın ücretsiz planında bir fonksiyon **10 saniyede** kesiliyor. Instagram ise görseli kendi tarafında işliyor ve bu bazen birkaç saniye sürüyor. Fonksiyon bunu döngüde beklerse limite dayanıyor — ilk sürümde gerçek bir paylaşım **9.977 ms** sürdü, yani 23 ms farkla sığdı. Yayında bu kırılırdı.
+
+Şimdi iş ikiye bölünmüş durumda:
+
+```
+POST instagram-publish          → kapsayıcıyı oluştur, bir kez durum sor
+   ├─ hazırsa   → yayınla, 200 { done: true, mediaId }
+   └─ değilse   → 202 { done: false, containerId }
+                        ↓
+POST instagram-publish-finish   → tek bir durum kontrolü
+   ├─ hazırsa   → yayınla, 200 { done: true, mediaId }
+   └─ değilse   → 202 { done: false }   → tarayıcı 2 sn sonra tekrar sorar
+```
+
+Görseller genelde anında hazır olduğu için normal durumda tek istek yetiyor. Hiçbir istek döngüde beklemiyor, dolayısıyla süre ne olursa olsun 10 saniyeye yaklaşmıyor.
+
 ## Bilinen sınırlar
 
 - **Token 60 gün geçerli.** Dolmadan yenilenmeli; otomatik yenileme henüz yazılmadı.
-- **Video ve reels** senkron fonksiyonda yayınlanamaz. Netlify'ın ücretsiz planında fonksiyon 10 saniyede kesilir, video işleme daha uzun sürer. Bunun için `-background` sonekli bir fonksiyon gerekiyor — henüz eklenmedi, şimdilik sadece görsel gönderisi çalışıyor.
+- **Video ve reels** arayüzde yok. Backend `REELS` ve `VIDEO` türlerini kabul ediyor ve yukarıdaki yoklama akışı işleme süresi ne olursa olsun bekleyebiliyor — yani 10 saniye limiti artık engel değil. Eksik olan tarafı arayüz: `ImagePicker` sadece görsel alıp JPEG'e çeviriyor, video yükleme yolu yazılmadı. Video için ayrıca boyut, süre ve format kuralları da doğrulanmalı.
 - **Başka kullanıcılar** uygulamayı kullanacaksa Meta App Review şart (2-4 hafta).
