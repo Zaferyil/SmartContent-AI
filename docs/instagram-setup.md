@@ -77,6 +77,21 @@ Yayına alırken `ALLOWED_ORIGIN` değişkenini de site adresine ayarla; aksi ha
 | `4` / `17` | Hız limiti | 24 saatte 100 gönderi sınırı |
 | `200` | İzin eksik | `instagram_business_content_publish` verilmemiş |
 
+## Gönderi türleri
+
+| Tür | `postType` | Durum |
+|---|---|---|
+| Gönderi (feed) | `FEED` | ✅ çalışıyor |
+| Story | `STORY` | ✅ çalışıyor — Instagram Story'lerde başlık kabul etmediği için metin gönderilmez |
+| Reels | `REELS` | ⚠️ video, background fonksiyonu gerekiyor |
+| Feed video | `VIDEO` | ⚠️ aynı sebep |
+
+```bash
+curl -X POST http://localhost:8888/.netlify/functions/instagram-publish \
+  -H "Content-Type: application/json" \
+  -d '{"postType":"STORY","imageUrl":"https://picsum.photos/1080/1920"}'
+```
+
 ## Bilinen sınırlar
 
 - **Token 60 gün geçerli.** Dolmadan yenilenmeli; otomatik yenileme henüz yazılmadı.

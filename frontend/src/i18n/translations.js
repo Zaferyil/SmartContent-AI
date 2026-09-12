@@ -53,6 +53,14 @@ export const translations = {
       generated: 'İçerik hazır!',
       saved: 'Taslaklara kaydedildi.',
       characters: 'karakter',
+      postTypeLabel: 'Gönderi türü',
+      postTypes: {
+        FEED: 'Gönderi',
+        STORY: 'Story',
+        REELS: 'Reels',
+      },
+      reelsUnavailable: 'Reels için video desteği henüz hazır değil.',
+      storyNoCaption: 'Story’lerde metin görünmez — Instagram başlık kabul etmiyor.',
       media: {
         label: 'Görsel',
         pick: 'Görsel seç veya buraya sürükle',
@@ -207,6 +215,14 @@ export const translations = {
       generated: 'Inhalt ist fertig!',
       saved: 'In den Entwürfen gespeichert.',
       characters: 'Zeichen',
+      postTypeLabel: 'Beitragsart',
+      postTypes: {
+        FEED: 'Beitrag',
+        STORY: 'Story',
+        REELS: 'Reels',
+      },
+      reelsUnavailable: 'Video-Unterstützung für Reels ist noch nicht fertig.',
+      storyNoCaption: 'In Storys erscheint kein Text — Instagram nimmt keine Bildunterschrift an.',
       media: {
         label: 'Bild',
         pick: 'Bild auswählen oder hierher ziehen',
@@ -361,6 +377,14 @@ export const translations = {
       generated: 'Content is ready!',
       saved: 'Saved to drafts.',
       characters: 'characters',
+      postTypeLabel: 'Post type',
+      postTypes: {
+        FEED: 'Feed post',
+        STORY: 'Story',
+        REELS: 'Reels',
+      },
+      reelsUnavailable: 'Video support for Reels is not ready yet.',
+      storyNoCaption: 'Stories show no text — Instagram does not accept a caption.',
       media: {
         label: 'Image',
         pick: 'Choose an image or drop it here',

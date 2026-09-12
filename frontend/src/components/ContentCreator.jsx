@@ -1,10 +1,30 @@
 import React, { useState } from 'react'
-import { Wand2, Copy, RefreshCw, Check, Bookmark, Loader2, Send } from 'lucide-react'
+import {
+  Wand2,
+  Copy,
+  RefreshCw,
+  Check,
+  Bookmark,
+  Loader2,
+  Send,
+  Image,
+  Clock,
+  Film,
+  AlertTriangle,
+} from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
 import { generateContent } from '../utils/generateContent'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
+
+// Reels needs a video pipeline that a 10s synchronous function cannot run, so
+// it is shown but not selectable until the background function exists.
+const POST_TYPES = [
+  { id: 'FEED', icon: Image, ready: true },
+  { id: 'STORY', icon: Clock, ready: true },
+  { id: 'REELS', icon: Film, ready: false },
+]
 
 const FORMATS = ['caption', 'hashtags', 'hook', 'cta', 'thread']
 const TONES = ['friendly', 'professional', 'playful', 'bold']
@@ -21,6 +41,7 @@ export default function ContentCreator({ selected, notify }) {
   const [copied, setCopied] = useState(false)
   const [imageUrl, setImageUrl] = useState(null)
   const [publishing, setPublishing] = useState(false)
+  const [postType, setPostType] = useState('FEED')
 
   const run = async () => {
     if (!topic.trim()) return notify(t.create.needTopic, 'warn')
@@ -42,7 +63,7 @@ export default function ContentCreator({ selected, notify }) {
       const response = await fetch('/.netlify/functions/instagram-publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl, caption: result }),
+        body: JSON.stringify({ imageUrl, caption: result, postType }),
       })
       const data = await response.json()
 
@@ -72,6 +93,38 @@ export default function ContentCreator({ selected, notify }) {
       <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
         {/* ---------- Controls ---------- */}
         <div className="card space-y-5 p-5 sm:p-6 lg:col-span-2">
+          <div>
+            <span className="label">{t.create.postTypeLabel}</span>
+            <div className="grid grid-cols-3 gap-2">
+              {POST_TYPES.map(({ id, icon: Icon, ready }) => {
+                const active = postType === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => (ready ? setPostType(id) : notify(t.create.reelsUnavailable, 'warn'))}
+                    aria-pressed={active}
+                    className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 py-3 text-[13px] font-bold transition-all ${
+                      active
+                        ? 'border-brand-500 bg-brand-50 text-brand-700'
+                        : ready
+                          ? 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300'
+                          : 'border-dashed border-slate-200 bg-white/40 text-slate-300'
+                    }`}
+                  >
+                    <Icon size={18} strokeWidth={2.5} />
+                    {t.create.postTypes[id]}
+                  </button>
+                )
+              })}
+            </div>
+            {postType === 'STORY' && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-amber-700">
+                <AlertTriangle size={13} strokeWidth={2.5} className="mt-px shrink-0" />
+                {t.create.storyNoCaption}
+              </p>
+            )}
+          </div>
+
           <div>
             <span className="label">{t.create.formatLabel}</span>
             <div className="flex flex-wrap gap-2">
