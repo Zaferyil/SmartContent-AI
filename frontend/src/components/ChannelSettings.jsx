@@ -1,144 +1,166 @@
 import React, { useState } from 'react'
-import { Key, Save, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Save, ShieldCheck, ArrowRight, Check } from 'lucide-react'
+import { useLanguage } from '../i18n/LanguageContext'
+import { translations } from '../i18n/translations'
+import { getPlatform } from '../data/platforms'
+import ScreenHeader from './ScreenHeader'
 
-export default function ChannelSettings({ selectedPlatforms }) {
-  const [settings, setSettings] = useState({
-    instagram: { token: '', businessAccountId: '' },
-    facebook: { token: '', pageId: '' },
-    tiktok: { token: '', businessAccountId: '' },
-    twitter: { token: '', apiKey: '' },
-    linkedin: { token: '', organizationId: '' },
-    pinterest: { token: '', businessAccountId: '' }
-  })
+const STORAGE_KEY = 'smartcontentai_credentials'
 
-  const [showPassword, setShowPassword] = useState({})
-  const [saved, setSaved] = useState(false)
-
-  const platformConfig = {
-    instagram: { label: 'Instagram', icon: '📷', fields: ['token', 'businessAccountId'] },
-    facebook: { label: 'Facebook', icon: '👥', fields: ['token', 'pageId'] },
-    tiktok: { label: 'TikTok', icon: '🎵', fields: ['token', 'businessAccountId'] },
-    twitter: { label: 'Twitter/X', icon: '𝕏', fields: ['token', 'apiKey'] },
-    linkedin: { label: 'LinkedIn', icon: '💼', fields: ['token', 'organizationId'] },
-    pinterest: { label: 'Pinterest', icon: '📌', fields: ['token', 'businessAccountId'] }
+function readStored() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {
+    // ignore unreadable storage
   }
+  return {}
+}
 
-  const handleChange = (platform, field, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [platform]: {
-        ...prev[platform],
-        [field]: value
-      }
-    }))
-  }
+export default function ChannelSettings({ selected, notify, onGoToPlatforms }) {
+  const { t, language, setLanguage, languages } = useLanguage()
+  const [creds, setCreds] = useState(readStored)
+  const [revealed, setRevealed] = useState({})
 
-  const handleSave = () => {
-    localStorage.setItem('channelSettings', JSON.stringify(settings))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-  }
+  const setField = (platformId, field, value) =>
+    setCreds((prev) => ({ ...prev, [platformId]: { ...prev[platformId], [field]: value } }))
 
-  const togglePasswordVisibility = (key) => {
-    setShowPassword(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }))
+  const save = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(creds))
+      notify(t.settings.saved)
+    } catch {
+      notify(t.settings.saved, 'warn')
+    }
   }
 
   return (
-    <div className="space-y-6">
-      {saved && (
-        <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded flex items-center gap-2">
-          <span>✅</span>
-          <span>Ayarlar kaydedildi!</span>
-        </div>
-      )}
+    <div>
+      <ScreenHeader title={t.settings.title} subtitle={t.settings.subtitle} />
 
-      {/* Settings for selected platforms */}
-      {selectedPlatforms.length === 0 ? (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded">
-          <p className="text-yellow-800">Lütfen önce <strong>Platformlar</strong> sekmesinden platform seçin.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {selectedPlatforms.map(platformId => {
-            const platform = platformConfig[platformId]
-            if (!platform) return null
+      {/* ---------- Language ---------- */}
+      <section className="card mb-6 p-5 sm:p-6">
+        <h3 className="text-base font-extrabold">{t.settings.languageTitle}</h3>
+        <p className="mt-1 text-sm text-slate-500">{t.settings.languageHint}</p>
 
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+          {languages.map((lang) => {
+            const active = lang.code === language
             return (
-              <div key={platformId} className="bg-white rounded-lg p-6 shadow">
-                <h3 className="font-bold text-lg mb-4">{platform.icon} {platform.label} API</h3>
-
-                <div className="space-y-4">
-                  {platform.fields.map(field => (
-                    <div key={field}>
-                      <label className="block font-medium text-sm mb-2 capitalize">
-                        {field === 'token' ? '🔑 API Token' : field.replace(/([A-Z])/g, ' $1')}
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type={showPassword[`${platformId}-${field}`] ? 'text' : 'password'}
-                          value={settings[platformId][field]}
-                          onChange={(e) => handleChange(platformId, field, e.target.value)}
-                          placeholder={`${platform.label} ${field} girin`}
-                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                        <button
-                          onClick={() => togglePasswordVisibility(`${platformId}-${field}`)}
-                          className="p-3 hover:bg-gray-100 rounded-lg transition-all"
-                        >
-                          {showPassword[`${platformId}-${field}`] ? (
-                            <EyeOff size={20} className="text-gray-600" />
-                          ) : (
-                            <Eye size={20} className="text-gray-600" />
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {field === 'token' && `${platform.label} Developer Console'dan alın`}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <button
+                key={lang.code}
+                onClick={() => {
+                  if (lang.code === language) return
+                  setLanguage(lang.code)
+                  notify(translations[lang.code].settings.languageChanged)
+                }}
+                aria-pressed={active}
+                className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
+                  active
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-slate-200 bg-white/70 hover:border-slate-300'
+                }`}
+              >
+                <span className="text-2xl leading-none">{lang.flag}</span>
+                <span className="flex-1 font-extrabold text-ink">{lang.label}</span>
+                {active && (
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-brand-600 text-white">
+                    <Check size={14} strokeWidth={4} />
+                  </span>
+                )}
+              </button>
             )
           })}
         </div>
-      )}
+      </section>
 
-      {/* Save Button */}
-      {selectedPlatforms.length > 0 && (
-        <div className="flex gap-4">
-          <button
-            onClick={handleSave}
-            className="flex-1 bg-primary text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-          >
-            <Save size={20} />
-            Ayarları Kaydet
-          </button>
-          <button
-            onClick={() => {
-              const defaultSettings = {}
-              selectedPlatforms.forEach(p => {
-                defaultSettings[p] = { token: '', businessAccountId: '', pageId: '', apiKey: '', organizationId: '' }
-              })
-              setSettings(prev => ({ ...prev, ...defaultSettings }))
-            }}
-            className="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-all"
-          >
-            Temizle
-          </button>
-        </div>
-      )}
+      {/* ---------- Credentials ---------- */}
+      <section>
+        <h3 className="text-base font-extrabold">{t.settings.apiTitle}</h3>
+        <p className="mb-4 mt-1 text-sm text-slate-500">{t.settings.apiHint}</p>
 
-      {/* Security Info */}
-      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded">
-        <div className="flex gap-2">
-          <Key size={20} className="text-yellow-600 flex-shrink-0" />
-          <div className="text-sm text-yellow-800">
-            <strong>Güvenlik:</strong> API anahtarlarınız sadece bu cihazda localStorage'da saklanır. Asla paylaşmayın.
-          </div>
+        {selected.length === 0 ? (
+          <button
+            onClick={onGoToPlatforms}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50/80 px-4 py-3.5 text-left text-sm font-bold text-amber-900 transition-colors hover:bg-amber-100/80"
+          >
+            {t.settings.noPlatforms}
+            <ArrowRight size={17} strokeWidth={2.5} className="shrink-0" />
+          </button>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {selected.map((id) => {
+                const platform = getPlatform(id)
+                if (!platform) return null
+
+                return (
+                  <div key={id} className="card overflow-hidden">
+                    <div className={`bg-gradient-to-r ${platform.gradient} px-5 py-3.5`}>
+                      <h4 className="flex items-center gap-2 font-extrabold text-white">
+                        <span className="text-lg leading-none">{platform.icon}</span>
+                        {platform.name}
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4 p-5">
+                      {platform.fields.map((field) => {
+                        const revealKey = `${id}.${field}`
+                        const isSecret = field === 'token' || field === 'apiKey'
+                        const shown = revealed[revealKey]
+                        return (
+                          <div key={field}>
+                            <label className="label" htmlFor={revealKey}>
+                              {t.settings[field]}
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                id={revealKey}
+                                type={isSecret && !shown ? 'password' : 'text'}
+                                value={creds[id]?.[field] ?? ''}
+                                onChange={(e) => setField(id, field, e.target.value)}
+                                placeholder={t.settings[field]}
+                                autoComplete="off"
+                                className="field flex-1"
+                              />
+                              {isSecret && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRevealed((prev) => ({ ...prev, [revealKey]: !prev[revealKey] }))
+                                  }
+                                  aria-label={shown ? t.settings.hide : t.settings.show}
+                                  className="grid w-12 shrink-0 place-items-center rounded-2xl border-2 border-slate-200 bg-white/70 text-slate-500 transition-colors hover:border-brand-400 hover:text-brand-600"
+                                >
+                                  {shown ? <EyeOff size={17} /> : <Eye size={17} />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <button onClick={save} className="btn-primary mt-5 w-full sm:w-auto sm:px-10">
+              <Save size={18} strokeWidth={2.5} />
+              {t.settings.save}
+            </button>
+          </>
+        )}
+      </section>
+
+      {/* ---------- Security note ---------- */}
+      <div className="card mt-6 flex gap-3 p-5">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-600">
+          <ShieldCheck size={19} strokeWidth={2.5} />
+        </span>
+        <div>
+          <h4 className="text-sm font-extrabold">{t.settings.securityTitle}</h4>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t.settings.securityBody}</p>
         </div>
       </div>
     </div>

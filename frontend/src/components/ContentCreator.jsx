@@ -1,207 +1,210 @@
 import React, { useState } from 'react'
-import { Zap, Copy, RefreshCw } from 'lucide-react'
+import { Wand2, Copy, RefreshCw, Check, Bookmark, Loader2 } from 'lucide-react'
+import { useLanguage } from '../i18n/LanguageContext'
+import { getPlatform } from '../data/platforms'
+import { generateContent } from '../utils/generateContent'
+import ScreenHeader from './ScreenHeader'
 
-export default function ContentCreator({ selectedPlatforms }) {
-  const [contentType, setContentType] = useState('caption')
+const FORMATS = ['caption', 'hashtags', 'hook', 'cta', 'thread']
+const TONES = ['friendly', 'professional', 'playful', 'bold']
+
+const IDEA_KEYS = ['launch', 'tip', 'story', 'behind']
+
+export default function ContentCreator({ selected, notify }) {
+  const { t, language } = useLanguage()
+  const [format, setFormat] = useState('caption')
+  const [tone, setTone] = useState('friendly')
   const [topic, setTopic] = useState('')
-  const [generatedContent, setGeneratedContent] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState('')
+  const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const contentTypes = [
-    { id: 'caption', label: 'Başlık', icon: '📝' },
-    { id: 'hashtags', label: 'Hashtag\'lar', icon: '#️⃣' },
-    { id: 'description', label: 'Açıklama', icon: '📄' },
-    { id: 'hook', label: 'Hook', icon: '🎣' }
-  ]
+  const run = async () => {
+    if (!topic.trim()) return notify(t.create.needTopic, 'warn')
+    if (selected.length === 0) return notify(t.create.needPlatform, 'warn')
 
-  const handleGenerateContent = async () => {
-    if (!topic.trim()) {
-      alert('Lütfen konu girin')
-      return
-    }
+    setBusy(true)
+    // Simulated latency — replaced by the Netlify function call later.
+    await new Promise((r) => setTimeout(r, 700))
+    setResult(generateContent({ topic, format, tone: t.create.tones[tone], language }))
+    setBusy(false)
+    notify(t.create.generated)
+  }
 
-    setLoading(true)
+  const copy = async () => {
     try {
-      // Mock API call - replace with actual Claude API
-      const mockResponses = {
-        caption: `🚀 ${topic} ile başarısı yakalayın!\n\nSmartContent Hub ile sosyal medya yönetimi hiç bu kadar kolay olmamıştı. Otomatik içerik oluşturma, akıllı zamanlama ve çoklu platform desteği.\n\n#${topic.replace(/ /g, '')} #SmartContent #SocialMedia`,
-        hashtags: `#${topic.replace(/ /g, '')} #SmartContent #AI #SocialMedia #Marketing #ContentCreator #Automation #Digital`,
-        description: `${topic} hakkında detaylı bilgi içeren profesyonel açıklama metni. Bu içerik SmartContent Hub'ın AI yapılandırıcısı tarafından otomatik olarak oluşturulmuştur.`,
-        hook: `Herkez bilmek ister: ${topic} hakkında gerçek şu...\n\n⬇️ Okumaya devam et`
-      }
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setGeneratedContent(mockResponses[contentType])
-    } catch (error) {
-      console.error('İçerik oluşturma hatası:', error)
-      alert('İçerik oluşturulamadı')
-    } finally {
-      setLoading(false)
+      await navigator.clipboard.writeText(result)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      notify(t.create.copy, 'warn')
     }
-  }
-
-  const handleCopyContent = () => {
-    navigator.clipboard.writeText(generatedContent)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const handleRegenerateContent = () => {
-    handleGenerateContent()
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Input Panel */}
-        <div className="lg:col-span-1 bg-white rounded-lg p-6 shadow">
-          <div className="space-y-4">
-            {/* Content Type Selection */}
-            <div>
-              <label className="block font-bold mb-2">📝 İçerik Türü</label>
-              <div className="grid grid-cols-2 gap-2">
-                {contentTypes.map(type => (
+    <div>
+      <ScreenHeader title={t.create.title} subtitle={t.create.subtitle} />
+
+      <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
+        {/* ---------- Controls ---------- */}
+        <div className="card space-y-5 p-5 sm:p-6 lg:col-span-2">
+          <div>
+            <span className="label">{t.create.formatLabel}</span>
+            <div className="flex flex-wrap gap-2">
+              {FORMATS.map((key) => {
+                const active = format === key
+                return (
                   <button
-                    key={type.id}
-                    onClick={() => setContentType(type.id)}
-                    className={`p-2 rounded text-sm font-medium transition-all ${
-                      contentType === type.id
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    key={key}
+                    onClick={() => setFormat(key)}
+                    className={`rounded-xl px-3 py-2 text-[13px] font-bold transition-all ${
+                      active
+                        ? 'text-white shadow-md shadow-brand-500/25'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                    style={active ? { backgroundImage: 'var(--grad-brand)' } : undefined}
+                  >
+                    {t.create.formats[key]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <span className="label">{t.create.toneLabel}</span>
+            <div className="grid grid-cols-2 gap-2">
+              {TONES.map((key) => {
+                const active = tone === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setTone(key)}
+                    className={`rounded-xl border-2 px-3 py-2.5 text-[13px] font-bold transition-all ${
+                      active
+                        ? 'border-brand-500 bg-brand-50 text-brand-700'
+                        : 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    {type.icon} {type.label}
+                    {t.create.tones[key]}
                   </button>
-                ))}
-              </div>
+                )
+              })}
             </div>
-
-            {/* Topic Input */}
-            <div>
-              <label className="block font-bold mb-2">🎯 Konu / Anahtar Kelime</label>
-              <textarea
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="Örn: Yapay Zeka, Sosyal Medya Marketing, İşletme Büyütme..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                rows="4"
-              />
-            </div>
-
-            {/* Platform Info */}
-            <div>
-              <label className="block font-bold mb-2">📱 Hedef Platformlar</label>
-              <div className="flex flex-wrap gap-2">
-                {selectedPlatforms.length === 0 ? (
-                  <p className="text-sm text-gray-500">Platform seçilmedi</p>
-                ) : (
-                  selectedPlatforms.map(platform => (
-                    <div key={platform} className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
-                      {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerateContent}
-              disabled={loading || !topic.trim()}
-              className={`w-full py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition-all ${
-                loading || !topic.trim()
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-primary to-secondary hover:shadow-lg'
-              }`}
-            >
-              <Zap size={20} />
-              {loading ? 'Oluşturuluyor...' : 'İçerik Oluştur'}
-            </button>
           </div>
-        </div>
 
-        {/* Output Panel */}
-        <div className="lg:col-span-2 bg-white rounded-lg p-6 shadow">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg">✨ Oluşturulan İçerik</h3>
-              {generatedContent && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleRegenerateContent}
-                    disabled={loading}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-all"
-                    title="Yeniden oluştur"
-                  >
-                    <RefreshCw size={20} className={loading ? 'text-gray-400' : 'text-gray-700'} />
-                  </button>
-                  <button
-                    onClick={handleCopyContent}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-all text-primary"
-                    title="Panoya kopyala"
-                  >
-                    <Copy size={20} />
-                  </button>
-                </div>
-              )}
-            </div>
+          <div>
+            <label className="label" htmlFor="topic">
+              {t.create.topicLabel}
+            </label>
+            <textarea
+              id="topic"
+              rows={4}
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder={t.create.topicPlaceholder}
+              className="field resize-y"
+            />
+          </div>
 
-            {generatedContent ? (
-              <div className="space-y-3">
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-gray-800 whitespace-pre-wrap">{generatedContent}</p>
-                </div>
-
-                {copied && (
-                  <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-2 rounded flex items-center gap-2">
-                    <span>✅</span>
-                    <span>Panoya kopyalandı!</span>
-                  </div>
-                )}
-
-                {/* Save Button */}
-                <div className="flex gap-2">
-                  <button className="flex-1 bg-primary text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-all">
-                    💾 Taslağa Kaydet
-                  </button>
-                  <button className="flex-1 bg-secondary text-white font-bold py-2 rounded-lg hover:bg-purple-700 transition-all">
-                    📤 Yayınla
-                  </button>
-                </div>
-              </div>
+          <div>
+            <span className="label">{t.create.targetLabel}</span>
+            {selected.length === 0 ? (
+              <p className="text-sm text-slate-400">{t.platforms.noneSelected}</p>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="text-4xl mb-4">🤖</div>
-                <p className="text-gray-500">
-                  İçerik oluşturmaya başlamak için konu girin ve "İçerik Oluştur" düğmesini tıklayın.
-                </p>
+              <div className="flex flex-wrap gap-2">
+                {selected.map((id) => {
+                  const p = getPlatform(id)
+                  if (!p) return null
+                  return (
+                    <span
+                      key={id}
+                      className={`chip bg-gradient-to-br text-white shadow-sm ${p.gradient}`}
+                    >
+                      <span className="text-sm leading-none">{p.icon}</span>
+                      {p.name}
+                    </span>
+                  )
+                })}
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Template Examples */}
-      <div className="bg-white rounded-lg p-6 shadow">
-        <h3 className="font-bold text-lg mb-4">📚 Örnek Şablonlar</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { title: 'Ürün Tanıtımı', emoji: '🛍️' },
-            { title: 'Motivasyon Metni', emoji: '💪' },
-            { title: 'Eğitim İçeriği', emoji: '📚' },
-            { title: 'İşbirliği Teklifı', emoji: '🤝' }
-          ].map((template, idx) => (
-            <button
-              key={idx}
-              onClick={() => setTopic(template.title)}
-              className="p-4 border border-gray-200 rounded-lg hover:border-primary hover:shadow transition-all text-left"
-            >
-              <span className="text-2xl mr-2">{template.emoji}</span>
-              <span className="font-medium">{template.title}</span>
-            </button>
-          ))}
+          <button onClick={run} disabled={busy} className="btn-primary w-full">
+            {busy ? (
+              <>
+                <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
+                {t.create.generating}
+              </>
+            ) : (
+              <>
+                <Wand2 size={18} strokeWidth={2.5} />
+                {t.create.generate}
+              </>
+            )}
+          </button>
+
+          <div>
+            <span className="label">{t.create.ideasTitle}</span>
+            <div className="flex flex-wrap gap-2">
+              {IDEA_KEYS.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setTopic(t.create.ideas[key])}
+                  className="rounded-xl border-2 border-dashed border-slate-200 px-3 py-2 text-[13px] font-semibold text-slate-500 transition-colors hover:border-brand-400 hover:text-brand-600"
+                >
+                  {t.create.ideas[key]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ---------- Result ---------- */}
+        <div className="card flex flex-col p-5 sm:p-6 lg:col-span-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-extrabold text-slate-700">{t.create.resultLabel}</h3>
+            {result && (
+              <span className="text-xs font-semibold text-slate-400">
+                {result.length} {t.create.characters}
+              </span>
+            )}
+          </div>
+
+          <div className="min-h-[260px] flex-1 rounded-2xl border-2 border-slate-100 bg-white/60 p-4 sm:min-h-[320px]">
+            {result ? (
+              <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-slate-700">
+                {result}
+              </p>
+            ) : (
+              <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+                <span
+                  className="grid h-14 w-14 place-items-center rounded-2xl text-white opacity-90"
+                  style={{ backgroundImage: 'var(--grad-brand)' }}
+                >
+                  <Wand2 size={24} strokeWidth={2.5} />
+                </span>
+                <p className="max-w-xs text-sm text-slate-400">{t.create.emptyResult}</p>
+              </div>
+            )}
+          </div>
+
+          {result && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <button onClick={copy} className="btn-ghost !py-3">
+                {copied ? <Check size={17} strokeWidth={3} /> : <Copy size={17} strokeWidth={2.5} />}
+                {copied ? t.create.copied : t.create.copy}
+              </button>
+              <button onClick={run} disabled={busy} className="btn-ghost !py-3">
+                <RefreshCw size={17} strokeWidth={2.5} className={busy ? 'animate-spin' : ''} />
+                {t.create.regenerate}
+              </button>
+              <button onClick={() => notify(t.create.saved)} className="btn-primary !py-3">
+                <Bookmark size={17} strokeWidth={2.5} />
+                {t.create.save}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,135 +1,118 @@
 import React from 'react'
-import { Check } from 'lucide-react'
+import { Check, Sparkles } from 'lucide-react'
+import { useLanguage } from '../i18n/LanguageContext'
+import { PLATFORMS } from '../data/platforms'
+import ScreenHeader from './ScreenHeader'
 
-export default function PlatformSelector({ selectedPlatforms, onSelectionChange }) {
-  const platforms = [
-    {
-      id: 'instagram',
-      name: 'Instagram',
-      icon: '📷',
-      description: 'Posts, Stories, Reels',
-      color: 'from-pink-400 to-rose-400'
-    },
-    {
-      id: 'facebook',
-      name: 'Facebook',
-      icon: '👥',
-      description: 'Pages, Posts, Videos',
-      color: 'from-blue-600 to-blue-400'
-    },
-    {
-      id: 'tiktok',
-      name: 'TikTok',
-      icon: '🎵',
-      description: 'Videos, Sounds, Trends',
-      color: 'from-black to-gray-700'
-    },
-    {
-      id: 'twitter',
-      name: 'Twitter/X',
-      icon: '𝕏',
-      description: 'Tweets, Threads, Spaces',
-      color: 'from-black to-gray-900'
-    },
-    {
-      id: 'linkedin',
-      name: 'LinkedIn',
-      icon: '💼',
-      description: 'Posts, Articles, Events',
-      color: 'from-blue-700 to-blue-500'
-    },
-    {
-      id: 'pinterest',
-      name: 'Pinterest',
-      icon: '📌',
-      description: 'Pins, Boards, Collections',
-      color: 'from-red-600 to-red-400'
-    }
-  ]
+export default function PlatformSelector({ selected, onChange }) {
+  const { t } = useLanguage()
 
-  const handleTogglePlatform = (platformId) => {
-    if (selectedPlatforms.includes(platformId)) {
-      onSelectionChange(selectedPlatforms.filter(p => p !== platformId))
-    } else {
-      onSelectionChange([...selectedPlatforms, platformId])
-    }
-  }
+  const toggle = (id) =>
+    onChange(selected.includes(id) ? selected.filter((p) => p !== id) : [...selected, id])
+
+  const allSelected = selected.length === PLATFORMS.length
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {platforms.map(platform => (
-          <div
-            key={platform.id}
-            onClick={() => handleTogglePlatform(platform.id)}
-            className={`relative p-6 rounded-lg cursor-pointer transition-all transform ${
-              selectedPlatforms.includes(platform.id)
-                ? 'ring-2 ring-primary shadow-lg scale-105'
-                : 'bg-white hover:shadow-md'
-            }`}
-            style={{
-              background: selectedPlatforms.includes(platform.id)
-                ? `linear-gradient(135deg, var(--color-start), var(--color-end))`
-                : 'white'
-            }}
+    <div>
+      <ScreenHeader
+        title={t.platforms.title}
+        subtitle={t.platforms.subtitle}
+        action={
+          <button
+            onClick={() => onChange(allSelected ? [] : PLATFORMS.map((p) => p.id))}
+            className="btn-ghost !px-4 !py-2.5 !text-sm"
           >
-            {/* Background gradient for selected */}
-            {selectedPlatforms.includes(platform.id) && (
-              <div className={`absolute inset-0 rounded-lg bg-gradient-to-br ${platform.color} opacity-90`} />
-            )}
+            {allSelected ? t.platforms.clearAll : t.platforms.selectAll}
+          </button>
+        }
+      />
 
-            {/* Content */}
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-3">
-                <div className="text-4xl">{platform.icon}</div>
-                {selectedPlatforms.includes(platform.id) && (
-                  <div className="bg-white rounded-full p-1">
-                    <Check size={20} className="text-primary" />
-                  </div>
-                )}
-              </div>
-
-              <h3 className={`text-xl font-bold mb-1 ${
-                selectedPlatforms.includes(platform.id) ? 'text-white' : 'text-gray-800'
-              }`}>
-                {platform.name}
-              </h3>
-
-              <p className={`text-sm ${
-                selectedPlatforms.includes(platform.id) ? 'text-gray-100' : 'text-gray-600'
-              }`}>
-                {platform.description}
-              </p>
-            </div>
-          </div>
-        ))}
+      {/* Selection counter */}
+      <div className="mb-5 flex items-center gap-2">
+        <span
+          className="chip text-white shadow-md shadow-brand-500/25"
+          style={{ backgroundImage: 'var(--grad-brand)' }}
+        >
+          {selected.length}
+        </span>
+        <span className="text-sm font-semibold text-slate-600">
+          {selected.length === 0 ? t.platforms.noneSelected : t.platforms.selected}
+        </span>
       </div>
 
-      {/* Selected Platforms Summary */}
-      <div className="bg-white rounded-lg p-6 shadow">
-        <h3 className="font-bold text-lg mb-3">📊 Seçilen Platformlar</h3>
-        {selectedPlatforms.length === 0 ? (
-          <p className="text-gray-500">Henüz platform seçilmedi</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {selectedPlatforms.map(platformId => {
-              const platform = platforms.find(p => p.id === platformId)
-              return (
-                <div key={platformId} className="bg-primary text-white px-4 py-2 rounded-full font-medium">
-                  {platform.icon} {platform.name}
-                </div>
-              )
-            })}
-          </div>
-        )}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        {PLATFORMS.map((platform) => {
+          const active = selected.includes(platform.id)
+          return (
+            <button
+              key={platform.id}
+              onClick={() => toggle(platform.id)}
+              aria-pressed={active}
+              className={`group relative overflow-hidden rounded-3xl border-2 p-4 text-left transition-all duration-300 sm:p-5 ${
+                active
+                  ? 'border-transparent shadow-xl shadow-brand-500/20'
+                  : 'border-white/70 bg-white/70 shadow-glow backdrop-blur-xl hover:-translate-y-1 hover:shadow-xl'
+              }`}
+            >
+              {/* Brand wash, full bleed when selected, a soft corner glow when not */}
+              <span
+                aria-hidden="true"
+                className={`absolute inset-0 bg-gradient-to-br ${platform.gradient} transition-opacity duration-300 ${
+                  active ? 'opacity-100' : 'opacity-0 group-hover:opacity-10'
+                }`}
+              />
+
+              <span className="relative flex flex-col gap-2.5">
+                <span className="flex items-start justify-between">
+                  <span
+                    className={`grid h-12 w-12 place-items-center rounded-2xl text-2xl transition-colors ${
+                      active ? 'bg-white/25 backdrop-blur-sm' : 'bg-slate-100'
+                    }`}
+                  >
+                    {platform.icon}
+                  </span>
+                  <span
+                    className={`grid h-7 w-7 place-items-center rounded-full transition-all ${
+                      active ? 'scale-100 bg-white text-slate-900' : 'scale-0 bg-transparent'
+                    }`}
+                  >
+                    <Check size={15} strokeWidth={4} />
+                  </span>
+                </span>
+
+                <span>
+                  <span
+                    className={`block text-base font-extrabold sm:text-lg ${
+                      active ? 'text-white' : 'text-ink'
+                    }`}
+                  >
+                    {platform.name}
+                  </span>
+                  <span
+                    className={`mt-0.5 block text-[11px] font-semibold sm:text-xs ${
+                      active ? 'text-white/85' : 'text-slate-500'
+                    }`}
+                  >
+                    {platform.formats}
+                  </span>
+                </span>
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Info Box */}
-      <div className="bg-blue-50 border-l-4 border-primary p-6 rounded">
-        <h4 className="font-bold text-primary mb-2">💡 İpucu</h4>
-        <p className="text-gray-700">
-          Birden fazla platform seçebilirsiniz. Sonra aynı içeriği tüm platformlara otomatik olarak yayınlayabilirsiniz.
-        </p>
+      <div className="card mt-6 flex gap-3 p-5">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white"
+          style={{ backgroundImage: 'var(--grad-brand)' }}
+        >
+          <Sparkles size={19} strokeWidth={2.5} />
+        </span>
+        <div>
+          <h3 className="text-sm font-extrabold">{t.platforms.tipTitle}</h3>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t.platforms.tipBody}</p>
+        </div>
       </div>
     </div>
   )
