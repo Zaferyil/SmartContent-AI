@@ -11,6 +11,7 @@
     "setup": "npm install && npm install --prefix frontend"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0"
   },

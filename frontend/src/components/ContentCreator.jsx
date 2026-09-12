@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
-import { generateContent } from '../utils/generateContent'
+import { generateCaption } from '../utils/generateCaption'
 import { publishPost } from '../utils/publishPost'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
@@ -46,15 +46,21 @@ export default function ContentCreator({ selected, notify }) {
   const [postType, setPostType] = useState('FEED')
 
   const run = async () => {
-    if (!topic.trim()) return notify(t.create.needTopic, 'warn')
+    // The copy is written from the image, so there is nothing to write without one.
+    if (!imageUrl) return notify(t.create.media.needImage, 'warn')
     if (selected.length === 0) return notify(t.create.needPlatform, 'warn')
 
     setBusy(true)
-    // Simulated latency — replaced by the Netlify function call later.
-    await new Promise((r) => setTimeout(r, 700))
-    setResult(generateContent({ topic, format, tone: t.create.tones[tone], language }))
-    setBusy(false)
-    notify(t.create.generated)
+    try {
+      setResult(
+        await generateCaption({ imageUrl, language, postType, topic, tone, format })
+      )
+      notify(t.create.generated)
+    } catch (error) {
+      notify(error.message, 'warn')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const publish = async () => {
@@ -125,6 +131,8 @@ export default function ContentCreator({ selected, notify }) {
             )}
           </div>
 
+          <ImagePicker onUploaded={setImageUrl} notify={notify} />
+
           <div>
             <span className="label">{t.create.formatLabel}</span>
             <div className="flex flex-wrap gap-2">
@@ -183,8 +191,6 @@ export default function ContentCreator({ selected, notify }) {
               className="field resize-y"
             />
           </div>
-
-          <ImagePicker onUploaded={setImageUrl} notify={notify} />
 
           <div>
             <span className="label">{t.create.targetLabel}</span>
