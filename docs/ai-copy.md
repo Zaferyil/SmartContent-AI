@@ -63,7 +63,15 @@ Kabaca gönderi başına **$0.01-0.02**. Günde 12 gönderi ≈ **ayda $4-7**.
 
 Daha ucuzu gerekirse `generate-caption.js` içindeki model satırını `claude-sonnet-5` yapabilirsin (girdi $2 / çıktı $10 per MTok — yaklaşık yarı fiyat). Metin kalitesi bir miktar düşer; karar senin.
 
-## Bilinen riskler
+## Doğrulandı
 
-- **10 saniye limiti.** Opus 5 bir görseli okuyup metin yazarken bu sınıra yaklaşabilir. Düşük effort bunun için seçildi ama gerçek ölçüm yapılmadı — ilk denemelerde sunucu penceresindeki süreye bak. Sürekli zaman aşımı olursa yayınlamada yaptığımız gibi bu da iki adıma bölünmeli.
-- **Canlı çağrı test edilmedi.** Doğrulama yolları test edildi; asıl API çağrısı geliştirme ortamında anahtar olmadığı için denenemedi. İlk çalıştıran sen olacaksın.
+Gerçek kullanımda çalıştı. Bir BrainFit Kids afişi yüklendiğinde model afişteki başparmak işaretini, abaküsü, marka adını, *"online & vor Ort"* ve *"ab 5 Jahren"* bilgilerini metne taşıdı — yani görseli okuduğu şablonla açıklanamaz. Fiyat veya tarih uydurmadı; sınırlar tuttu.
+
+Almanca çıktı çeviri gibi değil, doğal kurulmuş cümlelerle geldi.
+
+Süre 10 saniye limitinin rahatça altında kaldı, yani yayınlamada yaptığımız gibi ikiye bölmeye gerek yok. Bu düşük effort tercihine bağlı — effort yükseltilirse süre de artar, o zaman yeniden ölçülmeli.
+
+## Bilinen sınırlar
+
+- **Marka brifingi tek bir işletmeye göre yazılı.** Başka bir sektör için `BRAND_BRIEF` baştan yazılmalı.
+- **Metin kaydedilmiyor.** Üretilen metin sadece ekranda; sayfayı yenilersen gider. Kuyruk ve veritabanı gelince çözülecek.
