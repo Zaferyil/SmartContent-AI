@@ -9,6 +9,16 @@
 [functions]
   node_bundler = "esbuild"
 
+# `netlify dev` cannot autodetect the framework from the repo root, because the
+# Vite app lives in frontend/. Without this it falls back to a static server and
+# serves the raw repo instead of the app.
+[dev]
+  command = "npm run dev --prefix frontend"
+  targetPort = 3000
+  port = 8888
+  framework = "#custom"
+  autoLaunch = false
+
 # SPA fallback — every unknown path serves the app shell.
 [[redirects]]
   from = "/*"
