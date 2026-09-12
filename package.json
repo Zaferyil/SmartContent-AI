@@ -1,21 +1,24 @@
 {
   "name": "smartcontent-ai",
   "version": "1.0.0",
-  "description": "Multi-Platform Social Media Content Management with AI",
+  "private": true,
+  "description": "Multi-platform social media content management with AI",
   "type": "module",
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "preview": "cd frontend && npm run preview",
-    "setup": "npm install && cd frontend && npm install && cd ../netlify && npm install"
+    "dev": "netlify dev",
+    "build": "npm run build --prefix frontend",
+    "netlify:build": "npm ci --prefix frontend && npm run build --prefix frontend",
+    "setup": "npm install && npm install --prefix frontend"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
+    "@aws-sdk/s3-request-presigner": "^3.1131.0"
   },
   "keywords": [
     "social-media",
     "content-management",
     "ai",
     "instagram",
-    "facebook",
-    "tiktok",
     "automation"
   ],
   "author": "Zafer Yildiz",

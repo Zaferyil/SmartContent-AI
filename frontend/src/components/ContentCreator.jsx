@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Wand2, Copy, RefreshCw, Check, Bookmark, Loader2 } from 'lucide-react'
+import { Wand2, Copy, RefreshCw, Check, Bookmark, Loader2, Send } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
 import { generateContent } from '../utils/generateContent'
 import ScreenHeader from './ScreenHeader'
+import ImagePicker from './ImagePicker'
 
 const FORMATS = ['caption', 'hashtags', 'hook', 'cta', 'thread']
 const TONES = ['friendly', 'professional', 'playful', 'bold']
@@ -18,6 +19,8 @@ export default function ContentCreator({ selected, notify }) {
   const [result, setResult] = useState('')
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [imageUrl, setImageUrl] = useState(null)
+  const [publishing, setPublishing] = useState(false)
 
   const run = async () => {
     if (!topic.trim()) return notify(t.create.needTopic, 'warn')
@@ -29,6 +32,27 @@ export default function ContentCreator({ selected, notify }) {
     setResult(generateContent({ topic, format, tone: t.create.tones[tone], language }))
     setBusy(false)
     notify(t.create.generated)
+  }
+
+  const publish = async () => {
+    if (!imageUrl) return notify(t.create.media.needImage, 'warn')
+
+    setPublishing(true)
+    try {
+      const response = await fetch('/.netlify/functions/instagram-publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl, caption: result }),
+      })
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) throw new Error(data.error || t.create.media.publishFailed)
+      notify(t.create.media.published)
+    } catch (error) {
+      notify(`${t.create.media.publishFailed} ${error.message}`, 'warn')
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const copy = async () => {
@@ -106,6 +130,8 @@ export default function ContentCreator({ selected, notify }) {
               className="field resize-y"
             />
           </div>
+
+          <ImagePicker onUploaded={setImageUrl} notify={notify} />
 
           <div>
             <span className="label">{t.create.targetLabel}</span>
@@ -199,11 +225,32 @@ export default function ContentCreator({ selected, notify }) {
                 <RefreshCw size={17} strokeWidth={2.5} className={busy ? 'animate-spin' : ''} />
                 {t.create.regenerate}
               </button>
-              <button onClick={() => notify(t.create.saved)} className="btn-primary !py-3">
+              <button onClick={() => notify(t.create.saved)} className="btn-ghost !py-3">
                 <Bookmark size={17} strokeWidth={2.5} />
                 {t.create.save}
               </button>
             </div>
+          )}
+
+          {result && (
+            <button
+              onClick={publish}
+              disabled={publishing || !imageUrl}
+              title={!imageUrl ? t.create.media.needImage : undefined}
+              className="btn-primary mt-2 w-full"
+            >
+              {publishing ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
+                  {t.create.media.publishing}
+                </>
+              ) : (
+                <>
+                  <Send size={18} strokeWidth={2.5} />
+                  {t.create.media.publish}
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>
