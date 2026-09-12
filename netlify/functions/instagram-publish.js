@@ -1,4 +1,4 @@
-import { json, CORS, requireCredentials, graph, waitForContainer } from './_instagram.js'
+import { json, CORS, requireCredentials, graph, waitForContainer } from '../lib/instagram.js'
 
 const MAX_CAPTION = 2200
 

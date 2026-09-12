@@ -1,4 +1,4 @@
-import { json, CORS, requireCredentials, graph } from './_instagram.js'
+import { json, CORS, requireCredentials, graph } from '../lib/instagram.js'
 
 /**
  * Confirms the configured credentials actually work, without ever returning
