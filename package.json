@@ -1,0 +1,26 @@
+{
+  "name": "smartcontent-ai",
+  "version": "1.0.0",
+  "description": "Multi-Platform Social Media Content Management with AI",
+  "type": "module",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview",
+    "setup": "npm install && cd frontend && npm install && cd ../netlify && npm install"
+  },
+  "keywords": [
+    "social-media",
+    "content-management",
+    "ai",
+    "instagram",
+    "facebook",
+    "tiktok",
+    "automation"
+  ],
+  "author": "Zafer Yildiz",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
