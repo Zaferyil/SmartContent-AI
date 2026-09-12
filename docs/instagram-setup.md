@@ -19,9 +19,15 @@ cp .env.example .env
 `.env` dosyasını doldur. Bu dosya `.gitignore`'da — asla commit etme.
 
 ```bash
-npm install -g netlify-cli
-netlify dev
+npm install
+npm install --prefix frontend
+npx netlify dev
 ```
+
+> Netlify CLI, projenin devDependency'si olarak geliyor — ayrıca kurmana gerek
+> yok. `npm install -g netlify-cli` macOS'ta `EACCES` hatası verir çünkü
+> `/usr/local` kullanıcıya yazılabilir değil; `sudo` ise ileride başka izin
+> sorunları doğurur. Yereli kullan.
 
 Bağlantıyı doğrula:
 
