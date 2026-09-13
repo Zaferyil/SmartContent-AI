@@ -1,6 +1,7 @@
 import { json, CORS } from '../lib/instagram.js'
 import { listScheduled, PUBLISHABLE_PLATFORMS } from '../lib/schedule.js'
 import { readSettings } from '../lib/settings.js'
+import { requireAuth } from '../lib/auth.js'
 
 /**
  * Everything the calendar screen needs in one request.
@@ -17,6 +18,8 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'GET') return json(405, { error: 'Method not allowed' })
 
   try {
+    requireAuth(event)
+
     const [items, settings] = await Promise.all([listScheduled(), readSettings()])
 
     return json(200, {

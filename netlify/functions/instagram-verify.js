@@ -1,8 +1,10 @@
-import { json, CORS, requireCredentials, graph } from '../lib/instagram.js'
+import { json, CORS, graph } from '../lib/instagram.js'
+import { requireAuth } from '../lib/auth.js'
+import { listAccounts, resolveAccount } from '../lib/accounts.js'
 
 /**
- * Confirms the configured credentials actually work, without ever returning
- * the token itself. Call this first after setting the environment variables:
+ * Confirms the connected accounts actually work, without ever returning a
+ * token. Checks every account unless `?accountId=` names one.
  *
  *   curl https://<site>/.netlify/functions/instagram-verify
  */
@@ -36,32 +38,53 @@ async function probeInsights(userId, token) {
   }
 }
 
+async function checkOne(accountId) {
+  const { token, userId, account } = await resolveAccount(accountId)
+
+  const me = await graph('me', { params: { fields: 'user_id,username,account_type' }, token })
+
+  const limit = await graph(`${userId}/content_publishing_limit`, {
+    params: { fields: 'config,quota_usage' },
+    token,
+  }).catch(() => null)
+
+  return {
+    ok: true,
+    accountId: account.id,
+    username: me.username,
+    accountType: me.account_type ?? null,
+    quotaUsed: limit?.data?.[0]?.quota_usage ?? null,
+    quotaTotal: limit?.data?.[0]?.config?.quota_total ?? null,
+    insights: await probeInsights(userId, token),
+  }
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
 
   try {
-    const { token, userId } = requireCredentials()
+    requireAuth(event)
 
-    const me = await graph('me', {
-      params: { fields: 'user_id,username,account_type' },
-      token,
-    })
+    const only = event.queryStringParameters?.accountId
+    const accounts = only ? [{ id: only }] : await listAccounts()
 
-    const limit = await graph(`${userId}/content_publishing_limit`, {
-      params: { fields: 'config,quota_usage' },
-      token,
-    }).catch(() => null)
+    if (accounts.length === 0) {
+      return json(200, { ok: true, accounts: [], note: 'No accounts connected yet' })
+    }
 
-    return json(200, {
-      ok: true,
-      username: me.username,
-      accountType: me.account_type ?? null,
-      // Surfaced so you can confirm IG_USER_ID matches the token's own account.
-      userIdMatches: String(me.user_id) === String(userId),
-      quotaUsed: limit?.data?.[0]?.quota_usage ?? null,
-      quotaTotal: limit?.data?.[0]?.config?.quota_total ?? null,
-      insights: await probeInsights(userId, token),
-    })
+    // One broken account is reported rather than hiding the state of the rest.
+    const results = await Promise.all(
+      accounts.map((a) =>
+        checkOne(a.id).catch((error) => ({
+          ok: false,
+          accountId: a.id,
+          error: error.message,
+          metaCode: error.metaCode ?? null,
+        }))
+      )
+    )
+
+    return json(200, { ok: true, accounts: results })
   } catch (error) {
     return json(error.statusCode || 500, {
       ok: false,

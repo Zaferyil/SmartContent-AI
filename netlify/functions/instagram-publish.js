@@ -1,20 +1,23 @@
 import {
   json,
   CORS,
-  requireCredentials,
   createContainer,
   isContainerReady,
   publishContainer,
 } from '../lib/instagram.js'
+import { requireAuth } from '../lib/auth.js'
+import { resolveAccount } from '../lib/accounts.js'
 import { recordPublished } from '../lib/posts.js'
 
 /**
  * Publishes one post to Instagram, now.
  *
  * POST body:
- *   { "imageUrl": "https://...", "caption": "...", "postType": "FEED" }
- *   { "imageUrl": "https://...", "postType": "STORY" }
- *   { "videoUrl": "https://...", "caption": "...", "postType": "REELS" }
+ *   { "accountId": "...", "imageUrl": "https://...", "caption": "...", "postType": "FEED" }
+ *   { "accountId": "...", "imageUrl": "https://...", "postType": "STORY" }
+ *
+ * `accountId` picks which connected account to act as; omitting it uses the
+ * first Instagram account, which is what a single-account setup looks like.
  *
  * The media URL must be publicly reachable — Instagram fetches it server-side,
  * so localhost, signed-but-expiring, and auth-gated URLs all fail.
@@ -24,7 +27,7 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
 
   try {
-    const { token, userId } = requireCredentials()
+    requireAuth(event)
 
     let body
     try {
@@ -33,7 +36,8 @@ export const handler = async (event) => {
       return json(400, { error: 'Request body is not valid JSON' })
     }
 
-    const { imageUrl, videoUrl, caption = '', postType = 'FEED' } = body
+    const { imageUrl, videoUrl, caption = '', postType = 'FEED', accountId } = body
+    const { id, token, userId } = await resolveAccount(accountId)
 
     // Step 1 — create the media container.
     const containerId = await createContainer(
@@ -49,13 +53,21 @@ export const handler = async (event) => {
       const mediaId = await publishContainer(containerId, userId, token)
       // Recorded here rather than in the browser: a closed tab must not cost us
       // the history the analytics screens are built on.
-      await recordPublished({ mediaId, imageUrl, caption, postType }).catch((e) =>
+      await recordPublished({ mediaId, accountId: id, imageUrl, caption, postType }).catch((e) =>
         console.error('Could not record the published post:', e.message)
       )
-      return json(200, { ok: true, done: true, postType, mediaId, containerId })
+      return json(200, { ok: true, done: true, postType, mediaId, containerId, accountId: id })
     }
 
-    return json(202, { ok: true, done: false, postType, containerId, imageUrl, caption })
+    return json(202, {
+      ok: true,
+      done: false,
+      postType,
+      containerId,
+      imageUrl,
+      caption,
+      accountId: id,
+    })
   } catch (error) {
     console.error('Instagram publish failed:', error.message)
     return json(error.statusCode || 500, {

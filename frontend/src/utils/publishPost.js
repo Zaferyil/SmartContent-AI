@@ -1,19 +1,7 @@
+import { api } from './api'
+
 const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS = 120000
-
-async function postJson(url, body) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok && response.status !== 202) {
-    throw new Error(data.error || `Request failed (HTTP ${response.status})`)
-  }
-  return data
-}
 
 /**
  * Publishes a post, polling while Instagram processes the media.
@@ -24,14 +12,15 @@ async function postJson(url, body) {
  * image), otherwise it returns a containerId that instagram-publish-finish
  * resolves one check at a time.
  *
+ * `accountId` decides which connected account publishes, and the finish step is
+ * given the same one — a container belongs to the account that created it.
+ *
  * @param onProgress called with the attempt count while waiting, so the UI can
  *                   show that something is still happening.
  */
-export async function publishPost({ imageUrl, caption, postType }, { onProgress } = {}) {
-  const started = await postJson('/.netlify/functions/instagram-publish', {
-    imageUrl,
-    caption,
-    postType,
+export async function publishPost({ imageUrl, caption, postType, accountId }, { onProgress } = {}) {
+  const started = await api('instagram-publish', {
+    body: { imageUrl, caption, postType, accountId },
   })
 
   if (started.done) return started.mediaId
@@ -46,11 +35,14 @@ export async function publishPost({ imageUrl, caption, postType }, { onProgress 
 
     // The post details ride along so the finish step can record the published
     // post itself — it is the half that publishes when the media was slow.
-    const status = await postJson('/.netlify/functions/instagram-publish-finish', {
-      containerId: started.containerId,
-      imageUrl,
-      caption,
-      postType,
+    const status = await api('instagram-publish-finish', {
+      body: {
+        containerId: started.containerId,
+        accountId: started.accountId ?? accountId,
+        imageUrl,
+        caption,
+        postType,
+      },
     })
 
     if (status.done) return status.mediaId

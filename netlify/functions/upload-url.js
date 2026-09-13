@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { requireAuth } from '../lib/auth.js'
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -60,6 +61,8 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
 
   try {
+    requireAuth(event)
+
     const config = requireConfig()
 
     let body

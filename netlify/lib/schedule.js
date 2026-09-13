@@ -23,6 +23,8 @@ const KEY = 'schedule'
  *
  * @typedef {object} ScheduledPost
  * @property {string}  id
+ * @property {?string} accountId     which connected account publishes it; null
+ *                                   falls back to the first on the platform
  * @property {string}  platform
  * @property {string}  postType      FEED | STORY
  * @property {?string} imageUrl
@@ -53,6 +55,7 @@ export async function listScheduled() {
 function normalise(input, existing = null) {
   const base = existing ?? {
     id: randomUUID(),
+    accountId: null,
     platform: 'instagram',
     postType: 'FEED',
     imageUrl: null,
@@ -68,6 +71,7 @@ function normalise(input, existing = null) {
 
   const next = { ...base }
 
+  if (input.accountId !== undefined) next.accountId = input.accountId || null
   if (input.platform !== undefined) next.platform = String(input.platform)
   if (input.postType !== undefined) next.postType = String(input.postType)
   if (input.caption !== undefined) next.caption = String(input.caption)

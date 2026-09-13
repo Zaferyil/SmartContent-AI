@@ -1,5 +1,6 @@
 import { json, CORS } from '../lib/instagram.js'
 import { getJob } from '../lib/jobs.js'
+import { requireAuth } from '../lib/auth.js'
 
 /**
  * Where a background job's result is collected.
@@ -14,6 +15,8 @@ export const handler = async (event) => {
   if (!id) return json(400, { error: 'Provide an id' })
 
   try {
+    requireAuth(event)
+
     const job = await getJob(id)
     // A job is pruned an hour after it finishes; by then the browser has long
     // since collected the result, so treat a miss as gone rather than an error.

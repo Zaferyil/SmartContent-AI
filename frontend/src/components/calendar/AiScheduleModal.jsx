@@ -19,8 +19,7 @@ const fill = (template, vars) =>
 export default function AiScheduleModal({
   recommendation,
   settings,
-  channels,
-  publishable,
+  accounts = [],
   onClose,
   onSchedule,
   notify,
@@ -28,12 +27,8 @@ export default function AiScheduleModal({
   const { t, language } = useLanguage()
   const a = t.schedule.ai
 
-  const usable = (channels.length ? channels : ['instagram']).filter((id) =>
-    publishable.includes(id)
-  )
-
   const [count, setCount] = useState(3)
-  const [picked, setPicked] = useState(usable.slice(0, 1))
+  const [picked, setPicked] = useState(accounts.slice(0, 1).map((account) => account.id))
   const [from, setFrom] = useState(toDateInput(new Date()))
   const [to, setTo] = useState(toDateInput(addDays(new Date(), 13)))
   const [strategy, setStrategy] = useState('engagement')
@@ -80,7 +75,7 @@ export default function AiScheduleModal({
 
     setBusy(true)
     try {
-      await onSchedule({ slots, platforms: picked, goal })
+      await onSchedule({ slots, accountIds: picked, goal })
     } catch (error) {
       notify(error.message, 'warn')
     } finally {
@@ -150,14 +145,13 @@ export default function AiScheduleModal({
           <div>
             <span className="label">{a.channels}</span>
             <div className="flex flex-wrap gap-1.5">
-              {usable.map((id) => {
-                const p = getPlatform(id)
-                if (!p) return null
-                const on = picked.includes(id)
+              {accounts.map((account) => {
+                const p = getPlatform(account.platform)
+                const on = picked.includes(account.id)
                 return (
                   <button
-                    key={id}
-                    onClick={() => toggle(id)}
+                    key={account.id}
+                    onClick={() => toggle(account.id)}
                     aria-pressed={on}
                     className={`chip border-2 transition-all ${
                       on
@@ -165,8 +159,8 @@ export default function AiScheduleModal({
                         : 'border-slate-200 bg-white/70 text-slate-500'
                     }`}
                   >
-                    <span className="text-sm leading-none">{p.icon}</span>
-                    {p.name}
+                    {p && <span className="text-sm leading-none">{p.icon}</span>}
+                    @{account.username ?? account.externalId}
                   </button>
                 )
               })}

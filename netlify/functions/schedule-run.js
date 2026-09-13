@@ -1,11 +1,5 @@
-import {
-  json,
-  CORS,
-  requireCredentials,
-  createContainer,
-  isContainerReady,
-  publishContainer,
-} from '../lib/instagram.js'
+import { json, CORS, createContainer, isContainerReady, publishContainer } from '../lib/instagram.js'
+import { resolveAccount } from '../lib/accounts.js'
 import { listScheduled, dueNow, patchScheduled, PUBLISHABLE_PLATFORMS } from '../lib/schedule.js'
 import { recordPublished } from '../lib/posts.js'
 
@@ -38,7 +32,12 @@ const START_BUDGET_MS = 15000
 // forever would hammer the API with a request that cannot start working.
 const MAX_ATTEMPTS = 3
 
-async function advance(item, ctx) {
+async function advance(item) {
+  // Resolved per item, not per run: two due posts can belong to two different
+  // connected accounts, and publishing one as the other would be worse than
+  // not publishing at all.
+  const ctx = await resolveAccount(item.accountId, item.platform)
+
   if (item.status === 'publishing' && item.containerId) {
     if (!(await isContainerReady(item.containerId, ctx.token))) {
       return { id: item.id, state: 'still-processing' }
@@ -47,6 +46,7 @@ async function advance(item, ctx) {
     const mediaId = await publishContainer(item.containerId, ctx.userId, ctx.token)
     await recordPublished({
       mediaId,
+      accountId: ctx.id,
       imageUrl: item.imageUrl,
       caption: item.caption,
       postType: item.postType,
@@ -92,7 +92,6 @@ export const handler = async (event) => {
   const results = []
 
   try {
-    const ctx = requireCredentials()
     const items = await listScheduled()
 
     const due = dueNow(items).filter((item) => PUBLISHABLE_PLATFORMS.includes(item.platform))
@@ -102,7 +101,7 @@ export const handler = async (event) => {
       if (Date.now() - startedAt > START_BUDGET_MS) break
 
       try {
-        results.push(await advance(item, ctx))
+        results.push(await advance(item))
       } catch (error) {
         const attempts = (item.attempts ?? 0) + 1
         const exhausted = attempts >= MAX_ATTEMPTS

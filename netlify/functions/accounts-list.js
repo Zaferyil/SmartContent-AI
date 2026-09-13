@@ -1,11 +1,11 @@
 import { json, CORS } from '../lib/instagram.js'
-import { listPosts } from '../lib/posts.js'
-import { requireAuth } from '../lib/auth.js'
+import { requireAuth, isProtected } from '../lib/auth.js'
+import { listAccounts } from '../lib/accounts.js'
 
 /**
- * The recorded publishing history, newest first.
+ * The connected accounts, without their tokens.
  *
- * GET -> { ok: true, posts: [...] }
+ * GET -> { ok, accounts, protected }
  */
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
@@ -13,11 +13,9 @@ export const handler = async (event) => {
 
   try {
     requireAuth(event)
-
-    const posts = await listPosts()
-    return json(200, { ok: true, posts, count: posts.length })
+    return json(200, { ok: true, accounts: await listAccounts(), protected: isProtected() })
   } catch (error) {
-    console.error('Could not list posts:', error.message)
+    console.error('Could not list accounts:', error.message)
     return json(error.statusCode || 500, { ok: false, error: error.message })
   }
 }

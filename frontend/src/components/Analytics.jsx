@@ -32,11 +32,12 @@ const BAR_SOFT = '#e0e7ff'
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
 
-export default function Analytics({ notify, onGoToCreate }) {
+export default function Analytics({ accounts = [], notify, onGoToCreate }) {
   const { t, language } = useLanguage()
   const [posts, setPosts] = useState(null)
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [channel, setChannel] = useState('all')
 
   const load = useCallback(async () => {
     try {
@@ -87,8 +88,18 @@ export default function Analytics({ notify, onGoToCreate }) {
     [language]
   )
 
-  const stats = useMemo(() => (posts ? summarise(posts) : null), [posts])
-  const bands = useMemo(() => (posts ? buildBands(posts) : []), [posts])
+  // Posts recorded before accounts existed carry no accountId; they belong to
+  // the first connected account, which is the one that published them.
+  const defaultAccountId = accounts[0]?.id ?? null
+
+  const scoped = useMemo(() => {
+    if (!posts) return null
+    if (channel === 'all') return posts
+    return posts.filter((post) => (post.accountId ?? defaultAccountId) === channel)
+  }, [posts, channel, defaultAccountId])
+
+  const stats = useMemo(() => (scoped ? summarise(scoped) : null), [scoped])
+  const bands = useMemo(() => (scoped ? buildBands(scoped) : []), [scoped])
   const advice = useMemo(
     () => (stats ? recommendBand(bands, stats.measured) : null),
     [bands, stats]
@@ -143,6 +154,30 @@ export default function Analytics({ notify, onGoToCreate }) {
   return (
     <div>
       <ScreenHeader title={t.analytics.title} subtitle={t.analytics.subtitle} />
+
+      {accounts.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {[{ id: 'all' }, ...accounts].map((account) => {
+            const active = channel === account.id
+            return (
+              <button
+                key={account.id}
+                onClick={() => setChannel(account.id)}
+                aria-pressed={active}
+                className={`chip border-2 transition-all ${
+                  active
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
+                }`}
+              >
+                {account.id === 'all'
+                  ? t.schedule.allChannels
+                  : `@${account.username ?? account.externalId}`}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="mb-5">
         <button onClick={refresh} disabled={refreshing} className="btn-ghost">
@@ -257,7 +292,7 @@ export default function Analytics({ notify, onGoToCreate }) {
       {/* ---------- History ---------- */}
       <h3 className="mb-3 text-sm font-extrabold text-slate-700">{t.analytics.history}</h3>
       <ul className="space-y-3">
-        {posts.map((post) => {
+        {scoped.map((post) => {
           const m = post.metrics
           return (
             <li key={post.id} className="card flex gap-3 p-3 sm:gap-4 sm:p-4">

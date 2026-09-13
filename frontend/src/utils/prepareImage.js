@@ -1,3 +1,5 @@
+import { api } from './api'
+
 /**
  * Normalises a user-picked file into something Instagram will accept.
  *
@@ -74,15 +76,12 @@ export function aspectWarning(width, height) {
 }
 
 /** Uploads through a presigned URL and returns the public URL Instagram will fetch. */
-export async function uploadToStorage(blob, { endpoint = '/.netlify/functions/upload-url' } = {}) {
-  const presignResponse = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ size: blob.size }),
-  })
-
-  const presign = await presignResponse.json()
-  if (!presignResponse.ok) throw new Error(presign.error || 'Could not prepare the upload')
+export async function uploadToStorage(blob) {
+  // Asking for the presigned URL goes through our own API, so it carries the
+  // app password. The upload itself must not: it goes to Cloudflare, the URL's
+  // signature is its authorisation, and an extra header would both leak the
+  // password to a third party and break the signature.
+  const presign = await api('upload-url', { body: { size: blob.size } })
 
   const putResponse = await fetch(presign.uploadUrl, {
     method: 'PUT',

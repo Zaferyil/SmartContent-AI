@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ArrowRight,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
@@ -43,7 +44,7 @@ const upcoming = (items) =>
     .filter((item) => item.scheduledFor)
     .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
 
-export default function ContentCalendar({ selected, notify, onGoToCreate }) {
+export default function ContentCalendar({ accounts = [], notify, onGoToCreate, onGoToSettings }) {
   const { t, language } = useLanguage()
   const c = t.schedule
 
@@ -81,15 +82,15 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
   const settings = data?.settings
   const publishable = data?.publishable ?? []
 
-  const channels = useMemo(
-    () => (selected?.length ? selected : ['instagram']),
-    [selected]
-  )
+  // The filter lists connected accounts, not platforms: a post belongs to an
+  // account, and with two Instagram channels "Instagram" would not narrow
+  // anything down.
+  const defaultAccountId = accounts[0]?.id ?? null
 
-  const visible = useMemo(
-    () => (channel === 'all' ? items : items.filter((item) => item.platform === channel)),
-    [items, channel]
-  )
+  const visible = useMemo(() => {
+    if (channel === 'all') return items
+    return items.filter((item) => (item.accountId ?? defaultAccountId) === channel)
+  }, [items, channel, defaultAccountId])
 
   const recommendation = useMemo(
     () => (settings ? recommendedTimes({ posts, settings }) : null),
@@ -155,6 +156,7 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
       imageUrl: item.imageUrl,
       caption: item.caption,
       postType: item.postType,
+      accountId: item.accountId ?? defaultAccountId,
     })
 
     await persist(async () => {
@@ -167,10 +169,11 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
     return mediaId
   }
 
-  const scheduleWithAi = async ({ slots, platforms }) => {
+  const scheduleWithAi = async ({ slots, accountIds }) => {
     const drafts = slots.flatMap((slot) =>
-      platforms.map((platform) => ({
-        platform,
+      accountIds.map((accountId) => ({
+        accountId,
+        platform: 'instagram',
         postType: 'FEED',
         caption: '',
         imageUrl: null,
@@ -200,7 +203,8 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
   const openNew = (day = new Date(), time) => {
     const when = time ? atTime(day, time) : isToday(day) ? new Date(Date.now() + 3600000) : atTime(day, settings?.preferredTimes?.[0] ?? '09:00')
     setDrawerItem({
-      platform: channel === 'all' ? channels[0] : channel,
+      accountId: channel === 'all' ? defaultAccountId : channel,
+      platform: 'instagram',
       postType: 'FEED',
       imageUrl: null,
       caption: '',
@@ -286,6 +290,16 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
         <p className="mb-4 rounded-2xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
           {error}
         </p>
+      )}
+
+      {accounts.length === 0 && (
+        <button
+          onClick={onGoToSettings}
+          className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50/80 px-4 py-3.5 text-left text-sm font-bold text-amber-900 transition-colors hover:bg-amber-100/80"
+        >
+          {c.noAccounts}
+          <ArrowRight size={17} strokeWidth={2.5} className="shrink-0" />
+        </button>
       )}
 
       {!data.cronConfigured && (
@@ -379,14 +393,13 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
 
         {/* Channel filter */}
         <div className="mb-4 flex flex-wrap gap-1.5">
-          {['all', ...channels].map((id) => {
-            const p = id === 'all' ? null : getPlatform(id)
-            if (id !== 'all' && !p) return null
-            const active = channel === id
+          {[{ id: 'all' }, ...accounts].map((account) => {
+            const platform = account.id === 'all' ? null : getPlatform(account.platform)
+            const active = channel === account.id
             return (
               <button
-                key={id}
-                onClick={() => setChannel(id)}
+                key={account.id}
+                onClick={() => setChannel(account.id)}
                 aria-pressed={active}
                 className={`chip border-2 transition-all ${
                   active
@@ -394,8 +407,8 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
                     : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
                 }`}
               >
-                {p && <span className="text-sm leading-none">{p.icon}</span>}
-                {p ? p.name : c.allChannels}
+                {platform && <span className="text-sm leading-none">{platform.icon}</span>}
+                {account.id === 'all' ? c.allChannels : `@${account.username ?? account.externalId}`}
               </button>
             )
           })}
@@ -561,7 +574,7 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
       {drawerItem && (
         <PostDrawer
           item={drawerItem}
-          channels={channels}
+          accounts={accounts}
           publishable={publishable}
           onClose={() => setDrawerItem(null)}
           onSave={save}
@@ -576,8 +589,7 @@ export default function ContentCalendar({ selected, notify, onGoToCreate }) {
         <AiScheduleModal
           recommendation={recommendation}
           settings={settings}
-          channels={channels}
-          publishable={publishable}
+          accounts={accounts}
           onClose={() => setAiOpen(false)}
           onSchedule={scheduleWithAi}
           notify={notify}

@@ -1,5 +1,6 @@
-import { createJob, finishJob, failJob } from '../lib/jobs.js'
+import { finishJob, failJob } from '../lib/jobs.js'
 import { writeCaption } from '../lib/caption.js'
+import { requireAuth } from '../lib/auth.js'
 
 /**
  * Writes the copy out of band.
@@ -11,6 +12,13 @@ import { writeCaption } from '../lib/caption.js'
  */
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: '' }
+
+  // Checked on its own, so a rejected password is not reported as bad JSON.
+  try {
+    requireAuth(event)
+  } catch (error) {
+    return { statusCode: error.statusCode || 401, body: '' }
+  }
 
   let body
   try {

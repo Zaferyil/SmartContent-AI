@@ -1,5 +1,6 @@
 import { json, CORS } from '../lib/instagram.js'
 import { createJob } from '../lib/jobs.js'
+import { requireAuth } from '../lib/auth.js'
 
 /**
  * Reserves a job id.
@@ -15,6 +16,8 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
 
   try {
+    requireAuth(event)
+
     const { type = 'caption' } = JSON.parse(event.body || '{}')
     const job = await createJob(type)
     return json(200, { ok: true, jobId: job.id })

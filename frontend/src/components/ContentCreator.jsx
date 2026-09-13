@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Wand2,
   Copy,
@@ -32,7 +32,7 @@ const TONES = ['friendly', 'professional', 'playful', 'bold']
 
 const IDEA_KEYS = ['launch', 'tip', 'story', 'behind']
 
-export default function ContentCreator({ selected, notify }) {
+export default function ContentCreator({ selected, accounts = [], notify }) {
   const { t, language } = useLanguage()
   const [format, setFormat] = useState('caption')
   const [tone, setTone] = useState('friendly')
@@ -44,6 +44,15 @@ export default function ContentCreator({ selected, notify }) {
   const [publishing, setPublishing] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [postType, setPostType] = useState('FEED')
+  const [accountId, setAccountId] = useState(null)
+
+  // Default to the first connected account, and follow it if the list arrives
+  // after this screen first rendered.
+  useEffect(() => {
+    setAccountId((current) =>
+      current && accounts.some((a) => a.id === current) ? current : (accounts[0]?.id ?? null)
+    )
+  }, [accounts])
 
   const run = async () => {
     // The copy is written from the image, so there is nothing to write without one.
@@ -74,7 +83,7 @@ export default function ContentCreator({ selected, notify }) {
     setWaiting(false)
     try {
       await publishPost(
-        { imageUrl, caption: result, postType },
+        { imageUrl, caption: result, postType, accountId },
         { onProgress: () => setWaiting(true) }
       )
       notify(t.create.media.published)
@@ -198,21 +207,27 @@ export default function ContentCreator({ selected, notify }) {
 
           <div>
             <span className="label">{t.create.targetLabel}</span>
-            {selected.length === 0 ? (
-              <p className="text-sm text-slate-400">{t.platforms.noneSelected}</p>
+            {accounts.length === 0 ? (
+              <p className="text-sm font-semibold text-amber-700">{t.schedule.noAccounts}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {selected.map((id) => {
-                  const p = getPlatform(id)
-                  if (!p) return null
+                {accounts.map((account) => {
+                  const p = getPlatform(account.platform)
+                  const active = accountId === account.id
                   return (
-                    <span
-                      key={id}
-                      className={`chip bg-gradient-to-br text-white shadow-sm ${p.gradient}`}
+                    <button
+                      key={account.id}
+                      onClick={() => setAccountId(account.id)}
+                      aria-pressed={active}
+                      className={`chip border-2 transition-all ${
+                        active
+                          ? 'border-brand-500 bg-brand-50 text-brand-700'
+                          : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
+                      }`}
                     >
-                      <span className="text-sm leading-none">{p.icon}</span>
-                      {p.name}
-                    </span>
+                      {p && <span className="text-sm leading-none">{p.icon}</span>}
+                      @{account.username ?? account.externalId}
+                    </button>
                   )
                 })}
               </div>

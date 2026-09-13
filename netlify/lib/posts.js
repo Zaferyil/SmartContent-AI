@@ -14,6 +14,9 @@ const KEY = 'posts'
  * @property {string}  mediaId      Instagram's id — the key for fetching insights
  * @property {string}  platform     'instagram' for now; the field exists so the
  *                                  other channels do not need a migration later
+ * @property {?string} accountId    which connected account published it. Null on
+ *                                  posts recorded before accounts existed; those
+ *                                  resolve to the first account of the platform
  * @property {string}  postType     FEED | STORY
  * @property {string}  imageUrl     the R2 URL Instagram fetched
  * @property {string}  caption
@@ -28,7 +31,14 @@ export async function listPosts() {
 }
 
 /** Records a post that Instagram has accepted. Ignores a mediaId already stored. */
-export async function recordPublished({ mediaId, permalink, imageUrl, caption, postType }) {
+export async function recordPublished({
+  mediaId,
+  accountId = null,
+  permalink,
+  imageUrl,
+  caption,
+  postType,
+}) {
   let created = null
 
   await updateDoc(KEY, (posts) => {
@@ -41,6 +51,7 @@ export async function recordPublished({ mediaId, permalink, imageUrl, caption, p
       mediaId: String(mediaId),
       permalink: permalink ?? null,
       platform: 'instagram',
+      accountId,
       postType: postType ?? 'FEED',
       imageUrl: imageUrl ?? null,
       caption: caption ?? '',

@@ -1,26 +1,27 @@
-async function call(url, options) {
-  const response = await fetch(url, options)
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(data.error || `Request failed (HTTP ${response.status})`)
-  return data
-}
-
-const post = (url, body) =>
-  call(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+import { api } from './api'
 
 /** The calendar, the publishing settings, and what the server can actually publish to. */
-export const fetchSchedule = () => call('/.netlify/functions/schedule-list')
+export const fetchSchedule = () => api('schedule-list')
 
 /** Creates or updates scheduled posts. Takes a list so AI planning is one write. */
 export const saveScheduled = (items) =>
-  post('/.netlify/functions/schedule-save', { items }).then((data) => data.items)
+  api('schedule-save', { body: { items } }).then((data) => data.items)
 
 export const deleteScheduled = (ids) =>
-  post('/.netlify/functions/schedule-delete', { ids }).then((data) => data.items)
+  api('schedule-delete', { body: { ids } }).then((data) => data.items)
 
 export const saveSettings = (settings) =>
-  post('/.netlify/functions/settings-save', settings).then((data) => data.settings)
+  api('settings-save', { body: settings }).then((data) => data.settings)
+
+/** The connected social accounts, without their tokens. */
+export const fetchAccounts = () => api('accounts-list').then((data) => data.accounts)
+
+/**
+ * Connects an account from its token alone — the server reads back which
+ * account it is and refuses a token it cannot identify.
+ */
+export const addAccount = (token) =>
+  api('accounts-add', { body: { token } }).then((data) => data.account)
+
+export const removeAccount = (id) =>
+  api('accounts-remove', { body: { id } }).then((data) => data.accounts)

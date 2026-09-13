@@ -1,5 +1,6 @@
 import { json, CORS } from '../lib/instagram.js'
 import { saveScheduled } from '../lib/schedule.js'
+import { requireAuth } from '../lib/auth.js'
 
 /**
  * Creates or updates scheduled posts.
@@ -15,6 +16,8 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
 
   try {
+    requireAuth(event)
+
     let body
     try {
       body = JSON.parse(event.body || '{}')

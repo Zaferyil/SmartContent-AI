@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
-import { getPlatform, PLATFORMS } from '../../data/platforms'
+import { getPlatform } from '../../data/platforms'
 import { fromDateTimeInput, toDateInput, toTimeInput } from '../../utils/calendar'
 import { generateCaption } from '../../utils/generateCaption'
 import ImagePicker from '../ImagePicker'
@@ -31,7 +31,7 @@ const hashtagsIn = (caption) => (caption ?? '').match(/#[\p{L}\p{N}_]+/gu) ?? []
  */
 export default function PostDrawer({
   item,
-  channels,
+  accounts = [],
   publishable,
   onClose,
   onSave,
@@ -43,6 +43,7 @@ export default function PostDrawer({
   const { t, language } = useLanguage()
   const d = t.schedule.drawer
 
+  const [accountId, setAccountId] = useState(null)
   const [platform, setPlatform] = useState('instagram')
   const [postType, setPostType] = useState('FEED')
   const [imageUrl, setImageUrl] = useState(null)
@@ -65,6 +66,7 @@ export default function PostDrawer({
   useEffect(() => {
     if (!item) return
     const when = item.scheduledFor ? new Date(item.scheduledFor) : new Date()
+    setAccountId(item.accountId ?? accounts[0]?.id ?? null)
     setPlatform(item.platform ?? 'instagram')
     setPostType(item.postType ?? 'FEED')
     setImageUrl(item.imageUrl ?? null)
@@ -99,6 +101,7 @@ export default function PostDrawer({
 
   const collect = (status) => ({
     ...item,
+    accountId,
     platform,
     postType,
     imageUrl,
@@ -210,28 +213,34 @@ export default function PostDrawer({
           {/* ---------- Channel ---------- */}
           <div>
             <span className="label">{d.platform}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {(channels.length ? channels : ['instagram']).map((id) => {
-                const p = getPlatform(id) ?? PLATFORMS.find((x) => x.id === id)
-                if (!p) return null
-                const active = platform === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setPlatform(id)}
-                    disabled={live}
-                    className={`chip border-2 transition-all ${
-                      active
-                        ? 'border-brand-500 bg-brand-50 text-brand-700'
-                        : 'border-slate-200 bg-white/70 text-slate-500'
-                    }`}
-                  >
-                    <span className="text-sm leading-none">{p.icon}</span>
-                    {p.name}
-                  </button>
-                )
-              })}
-            </div>
+            {accounts.length === 0 ? (
+              <p className="text-xs font-semibold text-amber-700">{t.schedule.noAccounts}</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {accounts.map((account) => {
+                  const p = getPlatform(account.platform)
+                  const active = accountId === account.id
+                  return (
+                    <button
+                      key={account.id}
+                      onClick={() => {
+                        setAccountId(account.id)
+                        setPlatform(account.platform)
+                      }}
+                      disabled={live}
+                      className={`chip border-2 transition-all ${
+                        active
+                          ? 'border-brand-500 bg-brand-50 text-brand-700'
+                          : 'border-slate-200 bg-white/70 text-slate-500'
+                      }`}
+                    >
+                      {p && <span className="text-sm leading-none">{p.icon}</span>}
+                      @{account.username ?? account.externalId}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* ---------- When ---------- */}

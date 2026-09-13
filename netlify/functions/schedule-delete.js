@@ -1,5 +1,6 @@
 import { json, CORS } from '../lib/instagram.js'
 import { deleteScheduled } from '../lib/schedule.js'
+import { requireAuth } from '../lib/auth.js'
 
 /**
  * Removes scheduled posts from the calendar.
@@ -14,6 +15,8 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
 
   try {
+    requireAuth(event)
+
     let body
     try {
       body = JSON.parse(event.body || '{}')

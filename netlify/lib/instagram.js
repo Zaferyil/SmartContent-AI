@@ -21,7 +21,7 @@ export const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-App-Password',
   // Every GET here reports state that changes under the browser — the calendar
   // after a save, a job while it is still running. Without this the browser is
   // free to answer from cache and show work that already happened as missing.
@@ -32,26 +32,21 @@ export function json(statusCode, body) {
   return { statusCode, headers: CORS, body: JSON.stringify(body) }
 }
 
-/** Throws if the function is deployed without credentials configured. */
-export function requireCredentials() {
+/** The environment credentials, when this deployment still has them. */
+export function envCredentials() {
   const token = process.env.IG_ACCESS_TOKEN
   const userId = process.env.IG_USER_ID
-
-  if (!token || !userId) {
-    const missing = [!token && 'IG_ACCESS_TOKEN', !userId && 'IG_USER_ID'].filter(Boolean)
-    const error = new Error(`Missing environment variables: ${missing.join(', ')}`)
-    error.statusCode = 500
-    throw error
-  }
-  return { token, userId }
+  return token && userId ? { token, userId } : null
 }
 
 /**
  * Calls the Graph API and turns Meta's error envelope into a real Error.
  * Meta replies 200 with an `error` object in some cases, so check both.
  */
-export async function graph(path, { method = 'GET', params = {}, token } = {}) {
-  const url = new URL(`${HOST}/${API_VERSION}/${path}`)
+export async function graph(path, { method = 'GET', params = {}, token, versioned = true } = {}) {
+  // Token exchange endpoints sit at the host root, not under a version — asking
+  // for /v23.0/refresh_access_token is a 400 that explains nothing.
+  const url = new URL(versioned ? `${HOST}/${API_VERSION}/${path}` : `${HOST}/${path}`)
   const payload = { ...params, access_token: token }
 
   let response

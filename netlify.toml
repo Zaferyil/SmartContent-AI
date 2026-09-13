@@ -19,6 +19,13 @@
 [functions."schedule-run"]
   schedule = "*/5 * * * *"
 
+# Keeps connected accounts connected. An Instagram token expires 60 days after
+# it is issued and a valid one can be exchanged for a fresh 60 days without the
+# user present, so running this daily means a channel is connected once rather
+# than re-authorised every couple of months.
+[functions."accounts-refresh"]
+  schedule = "17 4 * * *"
+
 # `netlify dev` cannot autodetect the framework from the repo root, because the
 # Vite app lives in frontend/. Without this it falls back to a static server and
 # serves the raw repo instead of the app.

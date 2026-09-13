@@ -1,11 +1,15 @@
 import { json, CORS } from '../lib/instagram.js'
-import { writeSettings } from '../lib/settings.js'
 import { requireAuth } from '../lib/auth.js'
+import { addAccount } from '../lib/accounts.js'
 
 /**
- * Saves the publishing preferences.
+ * Connects an account from its access token alone.
  *
- * POST { timezone?, postsPerDay?, preferredTimes? } -> 200 { ok: true, settings }
+ * The account id and username are read back from Instagram rather than typed,
+ * so there is nothing to mistype, and a token that cannot identify itself is
+ * refused instead of stored.
+ *
+ * POST { "token": "IGQ..." } -> 200 { ok: true, account }
  */
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
@@ -21,9 +25,10 @@ export const handler = async (event) => {
       return json(400, { error: 'Request body is not valid JSON' })
     }
 
-    return json(200, { ok: true, settings: await writeSettings(body) })
+    const account = await addAccount({ platform: body.platform, token: body.token })
+    return json(200, { ok: true, account })
   } catch (error) {
-    console.error('Could not save settings:', error.message)
+    console.error('Could not add the account:', error.message)
     return json(error.statusCode || 500, { ok: false, error: error.message })
   }
 }

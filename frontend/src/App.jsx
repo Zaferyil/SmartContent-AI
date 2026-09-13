@@ -8,6 +8,9 @@ import ContentCreator from './components/ContentCreator'
 import ContentCalendar from './components/ContentCalendar'
 import Analytics from './components/Analytics'
 import ChannelSettings from './components/ChannelSettings'
+import PasswordGate from './components/PasswordGate'
+import { isUnauthorized, setUnauthorizedHandler } from './utils/api'
+import { fetchAccounts } from './utils/schedule'
 
 const TABS = [
   { id: 'platforms', icon: Layers },
@@ -38,6 +41,29 @@ function Shell() {
   const [selectedPlatforms, setSelectedPlatforms] = useState(readStoredPlatforms)
   const [toast, setToast] = useState(null)
 
+  // 'checking' until the first call comes back, so the app never flashes the
+  // password screen at someone who is already signed in.
+  const [access, setAccess] = useState('checking')
+  const [accounts, setAccounts] = useState([])
+
+  const loadAccounts = useCallback(async () => {
+    try {
+      setAccounts(await fetchAccounts())
+      setAccess('open')
+    } catch (error) {
+      if (isUnauthorized(error)) return setAccess('locked')
+      // Any other failure is a broken backend, not a locked one — let the
+      // screens render and report it themselves.
+      setAccess('open')
+    }
+  }, [])
+
+  useEffect(() => {
+    // A 401 from anywhere in the app, at any time, returns to the gate.
+    setUnauthorizedHandler(() => setAccess('locked'))
+    loadAccounts()
+  }, [loadAccounts])
+
   useEffect(() => {
     try {
       localStorage.setItem(PLATFORMS_KEY, JSON.stringify(selectedPlatforms))
@@ -50,12 +76,22 @@ function Shell() {
     setToast({ message, tone, key: Date.now() })
   }, [])
 
+  if (access === 'checking') return null
+  if (access === 'locked') return <PasswordGate onUnlocked={loadAccounts} />
+
   const screens = {
     platforms: <PlatformSelector selected={selectedPlatforms} onChange={setSelectedPlatforms} />,
-    create: <ContentCreator selected={selectedPlatforms} notify={notify} />,
-    schedule: <ContentCalendar selected={selectedPlatforms} notify={notify} onGoToCreate={() => setActiveTab('create')} />,
-    analytics: <Analytics notify={notify} onGoToCreate={() => setActiveTab('create')} />,
-    settings: <ChannelSettings selected={selectedPlatforms} notify={notify} onGoToPlatforms={() => setActiveTab('platforms')} />,
+    create: <ContentCreator selected={selectedPlatforms} accounts={accounts} notify={notify} />,
+    schedule: (
+      <ContentCalendar
+        accounts={accounts}
+        notify={notify}
+        onGoToCreate={() => setActiveTab('create')}
+        onGoToSettings={() => setActiveTab('settings')}
+      />
+    ),
+    analytics: <Analytics accounts={accounts} notify={notify} onGoToCreate={() => setActiveTab('create')} />,
+    settings: <ChannelSettings notify={notify} onAccountsChanged={loadAccounts} />,
   }
 
   return (

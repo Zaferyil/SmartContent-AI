@@ -239,6 +239,7 @@ export const translations = {
       },
 
       needPlatform: 'Wähle zuerst unter „Kanäle“ mindestens einen Kanal aus.',
+      noAccounts: 'Noch kein Konto verbunden — füge unter „Einstellungen“ einen Kanal hinzu.',
     },
 
     analytics: {
@@ -284,25 +285,48 @@ export const translations = {
 
     settings: {
       title: 'Einstellungen',
-      subtitle: 'Verwalte deine Sprache und Kanalverbindungen.',
+      subtitle: 'Verbinde deine Konten und verwalte die App-Sprache.',
+      loading: 'Konten werden geladen …',
+
+      connectedTitle: 'Verbundene Konten',
+      noneConnected: 'Noch kein Konto verbunden.',
+      addChannel: 'Kanal hinzufügen',
+      addTitle: 'Kanal hinzufügen',
+      addHint:
+        'Füge das Zugriffstoken aus deiner Meta-App ein. Die Konto-ID und der Benutzername werden automatisch von Instagram gelesen — du musst nichts weiter eintragen.',
+      token: 'Zugriffstoken',
+      checkAndConnect: 'Prüfen und verbinden',
+      checking: 'Wird geprüft …',
+      whereToken: 'Wo finde ich das Token?',
+      connected: '@{username} verbunden.',
+      removed: '@{username} getrennt.',
+      disconnect: 'Trennen',
+
+      tokenOk: 'Token gültig',
+      tokenValidFor: 'Token noch {days} Tage gültig',
+      expiresIn: 'Token läuft in {days} Tagen ab',
+      autoRefresh: 'Wird automatisch verlängert',
+      lastRefreshed: 'Zuletzt verlängert am {date}',
+
+      stayConnectedTitle: 'Einmal verbinden, dauerhaft verbunden',
+      stayConnectedBody:
+        'Instagram-Token laufen nach 60 Tagen ab. Die App verlängert sie täglich automatisch, solange ein Konto verbunden ist — du musst einen Kanal also nur ein einziges Mal hinzufügen. Nur wenn eine Verlängerung fehlschlägt, erscheint hier eine Warnung.',
+
+      securityTitle: 'Sicherheit',
+      securityBody:
+        'Token werden ausschließlich auf dem Server gespeichert und nie an den Browser zurückgegeben — hier siehst du nur die letzten vier Zeichen. Teile dein App-Passwort mit niemandem.',
+
       languageTitle: 'App-Sprache',
       languageHint: 'Die gesamte Oberfläche und erstellte Inhalte erscheinen in der gewählten Sprache.',
-      apiTitle: 'Kanalverbindungen',
-      apiHint: 'Gib die Zugangsdaten für jeden Kanal ein.',
-      noPlatforms: 'Wähle zuerst unter „Kanäle“ einen Kanal aus.',
-      goToPlatforms: 'Zu den Kanälen',
-      token: 'Zugriffstoken',
-      accountId: 'Konto-ID',
-      pageId: 'Seiten-ID',
-      apiKey: 'API-Schlüssel',
-      orgId: 'Organisations-ID',
-      show: 'Anzeigen',
-      hide: 'Verbergen',
-      save: 'Speichern',
-      saved: 'Einstellungen gespeichert.',
-      securityTitle: 'Sicherheit',
-      securityBody: 'Deine Schlüssel werden nur im Browser dieses Geräts gespeichert. Teile sie mit niemandem.',
       languageChanged: 'Sprache geändert.',
+    },
+
+    gate: {
+      subtitle: 'Bitte gib das App-Passwort ein.',
+      label: 'App-Passwort',
+      submit: 'Anmelden',
+      checking: 'Wird geprüft …',
+      wrong: 'Falsches Passwort.',
     },
 
     common: {
@@ -545,6 +569,7 @@ export const translations = {
       },
 
       needPlatform: 'Select at least one channel under Channels first.',
+      noAccounts: 'No account connected yet — add a channel under Settings.',
     },
 
     analytics: {
@@ -590,25 +615,48 @@ export const translations = {
 
     settings: {
       title: 'Settings',
-      subtitle: 'Manage your language and channel connections.',
+      subtitle: 'Connect your accounts and manage the app language.',
+      loading: 'Loading accounts …',
+
+      connectedTitle: 'Connected accounts',
+      noneConnected: 'No account connected yet.',
+      addChannel: 'Add channel',
+      addTitle: 'Add a channel',
+      addHint:
+        'Paste the access token from your Meta app. The account id and username are read back from Instagram automatically — there is nothing else to fill in.',
+      token: 'Access token',
+      checkAndConnect: 'Check and connect',
+      checking: 'Checking …',
+      whereToken: 'Where do I find the token?',
+      connected: '@{username} connected.',
+      removed: '@{username} disconnected.',
+      disconnect: 'Disconnect',
+
+      tokenOk: 'Token valid',
+      tokenValidFor: 'Token valid for another {days} days',
+      expiresIn: 'Token expires in {days} days',
+      autoRefresh: 'Renewed automatically',
+      lastRefreshed: 'Last renewed on {date}',
+
+      stayConnectedTitle: 'Connect once, stay connected',
+      stayConnectedBody:
+        'Instagram tokens expire after 60 days. The app renews them automatically every day for as long as an account is connected, so a channel only ever has to be added once. A warning appears here only if a renewal fails.',
+
+      securityTitle: 'Security',
+      securityBody:
+        'Tokens are stored on the server only and never sent back to the browser — you see just the last four characters here. Never share your app password.',
+
       languageTitle: 'App language',
       languageHint: 'The whole interface and generated content use the language you pick.',
-      apiTitle: 'Channel connections',
-      apiHint: 'Enter the access credentials for each channel.',
-      noPlatforms: 'Select a channel under Channels first.',
-      goToPlatforms: 'Go to channels',
-      token: 'Access token',
-      accountId: 'Account ID',
-      pageId: 'Page ID',
-      apiKey: 'API key',
-      orgId: 'Organization ID',
-      show: 'Show',
-      hide: 'Hide',
-      save: 'Save',
-      saved: 'Settings saved.',
-      securityTitle: 'Security',
-      securityBody: 'Your keys are stored only in this device’s browser. Never share them.',
       languageChanged: 'Language changed.',
+    },
+
+    gate: {
+      subtitle: 'Enter the app password to continue.',
+      label: 'App password',
+      submit: 'Sign in',
+      checking: 'Checking …',
+      wrong: 'Wrong password.',
     },
 
     common: {
