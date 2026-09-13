@@ -36,13 +36,18 @@ export default function PostCard({ item, onOpen, draggable = false, onDragStart 
         {platform && <span className="text-[11px] leading-none">{platform.icon}</span>}
       </span>
 
-      {/* No `block` here. Tailwind's line-clamp works by setting display to
-          -webkit-box, and `block` sets display too — it lands later in the
-          stylesheet, wins on equal specificity, and the clamp silently stops
-          clamping. That is what turned every card into the full caption and
-          stretched the week column down the page. */}
+      {/*
+        Two lines, held down two ways. line-clamp gives the ellipsis, but it
+        needs `display: -webkit-box` to survive — and it does not always: adding
+        `block` here once silently cancelled it, and it is not honoured on every
+        browser this runs on. The max-height is the floor underneath it, so the
+        worst case is a card cut without an ellipsis rather than a card as tall
+        as a 300-word caption, which is what pushed the week off the page.
+
+        2.75em is two lines at leading-snug (1.375).
+      */}
       {preview ? (
-        <span className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-500">
+        <span className="mt-1 line-clamp-2 max-h-[2.75em] overflow-hidden text-[11px] leading-snug text-slate-500">
           {preview}
         </span>
       ) : (

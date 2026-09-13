@@ -337,7 +337,9 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
                 <span className="text-sm leading-none">{getPlatform(next.platform)?.icon}</span>
                 <StatusChip status={next.status} />
               </span>
-              <span className="mt-0.5 line-clamp-1 text-[13px] text-slate-500">
+              {/* truncate, not line-clamp: one line needs no -webkit-box, so
+                  there is nothing here for a browser to decline. */}
+              <span className="mt-0.5 block truncate text-[13px] text-slate-500">
                 {next.caption?.replace(/\s+/g, ' ').trim() || '—'}
               </span>
             </button>
@@ -510,7 +512,7 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
                       <span className="block text-[13px] font-extrabold tabular-nums text-slate-700">
                         {queueLabel(item)}
                       </span>
-                      <span className="line-clamp-1 text-xs text-slate-500">
+                      <span className="block truncate text-xs text-slate-500">
                         {item.caption?.replace(/\s+/g, ' ').trim() || '—'}
                       </span>
                     </span>

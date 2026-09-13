@@ -38,10 +38,22 @@ export default function ListView({ items, onOpen, onDuplicate, onDelete }) {
                 <td className="whitespace-nowrap px-3 py-2.5 font-bold tabular-nums text-slate-700">
                   {when ? toTimeInput(when) : '—'}
                 </td>
-                <td className="max-w-[280px] px-3 py-2.5">
+                {/*
+                  One line, by nowrap-and-ellipsis rather than by line-clamp.
+                  This column was printing whole captions on a phone even though
+                  it asked for line-clamp-1 — the clamp sat on the button, and it
+                  needs `display: -webkit-box`, which a button does not reliably
+                  take. Truncation has no such requirement and no browser caveat.
+
+                  max-w-0 is what makes it work inside a table: without it the
+                  cell grows to whatever a nowrap line needs, and there is
+                  nothing left to clip. With it the percentage width is honoured
+                  and the text is cut to fit.
+                */}
+                <td className="w-[40%] max-w-0 px-3 py-2.5">
                   <button
                     onClick={() => onOpen(item)}
-                    className="line-clamp-1 text-left text-slate-600 hover:text-brand-600 hover:underline"
+                    className="block w-full truncate text-left text-slate-600 hover:text-brand-600 hover:underline"
                   >
                     {item.caption?.replace(/\s+/g, ' ').trim() || '—'}
                   </button>
