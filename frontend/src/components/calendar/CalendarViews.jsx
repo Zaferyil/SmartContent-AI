@@ -205,7 +205,7 @@ export function MonthView({ items, anchor, onOpen, onDropPost, onAdd }) {
                 key={day.toISOString()}
                 day={day}
                 onDropPost={onDropPost}
-                className={`min-h-[92px] rounded-xl border p-1.5 transition-colors ${
+                className={`flex min-h-[92px] flex-col rounded-xl border p-1.5 transition-colors ${
                   isToday(day)
                     ? 'border-brand-200 bg-brand-50/40'
                     : outside
@@ -213,14 +213,13 @@ export function MonthView({ items, anchor, onOpen, onDropPost, onAdd }) {
                       : 'border-slate-200/70 bg-white/60'
                 }`}
               >
-                <button
-                  onClick={() => onAdd(day)}
-                  className={`mb-1 block text-[12px] font-extrabold tabular-nums transition-colors hover:text-brand-600 ${
+                <span
+                  className={`mb-1 block text-[12px] font-extrabold tabular-nums ${
                     outside ? 'text-slate-300' : isToday(day) ? 'text-brand-600' : 'text-slate-600'
                   }`}
                 >
                   {day.getDate()}
-                </button>
+                </span>
 
                 <div className="space-y-1">
                   {shown.map((item) => (
@@ -239,6 +238,19 @@ export function MonthView({ items, anchor, onOpen, onDropPost, onAdd }) {
                     {t.schedule.morePosts.replace('{n}', dayItems.length - shown.length)}
                   </p>
                 )}
+
+                {/* The same add button the week has. The date used to be the
+                    button, which nothing about a bare number suggests — so the
+                    month was the one view you could not plan from. mt-auto
+                    keeps it on the cell floor, so the row of buttons stays
+                    straight however many posts a day holds. */}
+                <button
+                  onClick={() => onAdd(day)}
+                  aria-label={t.schedule.createPost}
+                  className="mt-auto flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-200 py-1 text-[11px] font-bold text-slate-300 transition-colors hover:border-brand-300 hover:text-brand-500"
+                >
+                  <Plus size={11} strokeWidth={3} />
+                </button>
               </DropZone>
             )
           })}

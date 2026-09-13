@@ -36,8 +36,13 @@ export default function PostCard({ item, onOpen, draggable = false, onDragStart 
         {platform && <span className="text-[11px] leading-none">{platform.icon}</span>}
       </span>
 
+      {/* No `block` here. Tailwind's line-clamp works by setting display to
+          -webkit-box, and `block` sets display too — it lands later in the
+          stylesheet, wins on equal specificity, and the clamp silently stops
+          clamping. That is what turned every card into the full caption and
+          stretched the week column down the page. */}
       {preview ? (
-        <span className="mt-1 line-clamp-2 block text-[11px] leading-snug text-slate-500">
+        <span className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-500">
           {preview}
         </span>
       ) : (
