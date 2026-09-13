@@ -16,8 +16,10 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
 import { generateCaption } from '../utils/generateCaption'
 import { publishPost } from '../utils/publishPost'
+import { fanOut, outcome } from '../utils/fanOut'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
+import ChannelResults from './ChannelResults'
 
 // Reels needs a video pipeline that a 10s synchronous function cannot run, so
 // it is shown but not selectable until the background function exists.
@@ -32,6 +34,9 @@ const TONES = ['friendly', 'professional', 'playful', 'bold']
 
 const IDEA_KEYS = ['launch', 'tip', 'story', 'behind']
 
+const fill = (template, vars) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
+
 export default function ContentCreator({ selected, accounts = [], notify }) {
   const { t, language } = useLanguage()
   const [format, setFormat] = useState('caption')
@@ -44,15 +49,33 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
   const [publishing, setPublishing] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [postType, setPostType] = useState('FEED')
-  const [accountId, setAccountId] = useState(null)
+  const [accountIds, setAccountIds] = useState([])
+  const [results, setResults] = useState(null)
 
-  // Default to the first connected account, and follow it if the list arrives
-  // after this screen first rendered.
+  // Default to the first connected account, and follow the list if it arrives
+  // after this screen first rendered. Only the first, never all of them: the
+  // button says "publish", and having it reach every channel by default is the
+  // kind of surprise that cannot be taken back.
   useEffect(() => {
-    setAccountId((current) =>
-      current && accounts.some((a) => a.id === current) ? current : (accounts[0]?.id ?? null)
-    )
+    setAccountIds((current) => {
+      const kept = current.filter((id) => accounts.some((a) => a.id === id))
+      if (kept.length) return kept
+      return accounts[0] ? [accounts[0].id] : []
+    })
   }, [accounts])
+
+  const toggleAccount = (id) =>
+    setAccountIds((current) =>
+      current.includes(id)
+        ? // Never down to nothing: an empty selection turns the publish button
+          // into one that silently does nothing at all.
+          current.length === 1
+          ? current
+          : current.filter((x) => x !== id)
+        : [...current, id]
+    )
+
+  const targets = accounts.filter((a) => accountIds.includes(a.id))
 
   const run = async () => {
     // The copy is written from the image, so there is nothing to write without one.
@@ -78,17 +101,33 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
 
   const publish = async () => {
     if (!imageUrl) return notify(t.create.media.needImage, 'warn')
+    if (targets.length === 0) return notify(t.create.needPlatform, 'warn')
 
     setPublishing(true)
     setWaiting(false)
+    setResults(null)
     try {
-      await publishPost(
-        { imageUrl, caption: result, postType, accountId },
-        { onProgress: () => setWaiting(true) }
+      const done = await fanOut(targets, (account) =>
+        publishPost(
+          { imageUrl, caption: result, postType, accountId: account.id },
+          { onProgress: () => setWaiting(true) }
+        )
       )
-      notify(t.create.media.published)
-    } catch (error) {
-      notify(`${t.create.media.publishFailed} ${error.message}`, 'warn')
+
+      // A single channel keeps the plain message it always had; the breakdown
+      // would be a list of one, which reads as though something went wrong.
+      if (done.length === 1) {
+        const [only] = done
+        if (only.ok) notify(t.create.media.published)
+        else notify(`${t.create.media.publishFailed} ${only.error}`, 'warn')
+      } else {
+        setResults(done)
+        const kind = outcome(done)
+        const ok = done.filter((r) => r.ok).length
+        if (kind === 'all') notify(fill(t.create.media.publishedAll, { n: ok }))
+        else if (kind === 'none') notify(t.create.media.publishedNone, 'warn')
+        else notify(fill(t.create.media.publishedSome, { ok, total: done.length }), 'warn')
+      }
     } finally {
       setPublishing(false)
       setWaiting(false)
@@ -206,31 +245,65 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
           </div>
 
           <div>
-            <span className="label">{t.create.targetLabel}</span>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+              <span className="label !mb-0">{t.create.targetLabel}</span>
+              {accounts.length > 1 && (
+                <button
+                  onClick={() =>
+                    setAccountIds(
+                      accountIds.length === accounts.length
+                        ? [accounts[0].id]
+                        : accounts.map((a) => a.id)
+                    )
+                  }
+                  className="shrink-0 text-xs font-extrabold text-brand-600 transition-colors hover:text-brand-700"
+                >
+                  {accountIds.length === accounts.length
+                    ? t.create.selectOne
+                    : t.create.selectAll}
+                </button>
+              )}
+            </div>
+
             {accounts.length === 0 ? (
               <p className="text-sm font-semibold text-amber-700">{t.schedule.noAccounts}</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {accounts.map((account) => {
-                  const p = getPlatform(account.platform)
-                  const active = accountId === account.id
-                  return (
-                    <button
-                      key={account.id}
-                      onClick={() => setAccountId(account.id)}
-                      aria-pressed={active}
-                      className={`chip border-2 transition-all ${
-                        active
-                          ? 'border-brand-500 bg-brand-50 text-brand-700'
-                          : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      {p && <span className="text-sm leading-none">{p.icon}</span>}
-                      @{account.username ?? account.externalId}
-                    </button>
-                  )
-                })}
-              </div>
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {accounts.map((account) => {
+                    const p = getPlatform(account.platform)
+                    const active = accountIds.includes(account.id)
+                    return (
+                      <button
+                        key={account.id}
+                        onClick={() => toggleAccount(account.id)}
+                        aria-pressed={active}
+                        className={`chip border-2 transition-all ${
+                          active
+                            ? 'border-brand-500 bg-brand-50 text-brand-700'
+                            : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        {active ? (
+                          <Check size={13} strokeWidth={3} />
+                        ) : (
+                          p && <span className="text-sm leading-none">{p.icon}</span>
+                        )}
+                        @{account.username ?? account.externalId}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Posting to several channels at once is easy to do by accident
+                    and impossible to undo, so the count is stated rather than
+                    left to be read off the highlighted chips. */}
+                {accountIds.length > 1 && (
+                  <p className="mt-2 text-xs font-semibold text-slate-400">
+                    {fill(t.create.targetCount, { n: accountIds.length })}
+                  </p>
+                )}
+              </>
             )}
           </div>
 
@@ -310,6 +383,12 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             </div>
           )}
 
+          {results && (
+            <div className="mt-3">
+              <ChannelResults results={results} title={t.create.media.perChannel} />
+            </div>
+          )}
+
           {result && (
             <button
               onClick={publish}
@@ -325,7 +404,9 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
               ) : (
                 <>
                   <Send size={18} strokeWidth={2.5} />
-                  {t.create.media.publish}
+                  {targets.length > 1
+                    ? fill(t.create.media.publishToAll, { n: targets.length })
+                    : t.create.media.publish}
                 </>
               )}
             </button>

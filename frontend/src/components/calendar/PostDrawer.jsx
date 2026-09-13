@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   AlertCircle,
   CalendarClock,
+  Check,
   Copy,
   Loader2,
   Send,
@@ -20,6 +21,9 @@ import StatusChip from './StatusChip'
 const POST_TYPES = ['FEED', 'STORY']
 
 const hashtagsIn = (caption) => (caption ?? '').match(/#[\p{L}\p{N}_]+/gu) ?? []
+
+const fill = (template, vars) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
 
 /**
  * The detail panel for one calendar entry.
@@ -43,7 +47,9 @@ export default function PostDrawer({
   const { t, language } = useLanguage()
   const d = t.schedule.drawer
 
-  const [accountId, setAccountId] = useState(null)
+  // A list even when it holds one: a new entry can cover several channels, and
+  // an existing one is always exactly one post on one channel.
+  const [accountIds, setAccountIds] = useState([])
   const [platform, setPlatform] = useState('instagram')
   const [postType, setPostType] = useState('FEED')
   const [imageUrl, setImageUrl] = useState(null)
@@ -66,7 +72,8 @@ export default function PostDrawer({
   useEffect(() => {
     if (!item) return
     const when = item.scheduledFor ? new Date(item.scheduledFor) : new Date()
-    setAccountId(item.accountId ?? accounts[0]?.id ?? null)
+    const first = item.accountId ?? accounts[0]?.id ?? null
+    setAccountIds(first ? [first] : [])
     setPlatform(item.platform ?? 'instagram')
     setPostType(item.postType ?? 'FEED')
     setImageUrl(item.imageUrl ?? null)
@@ -99,16 +106,29 @@ export default function PostDrawer({
   const canPublish = publishable.includes(platform)
   const live = item.status === 'published'
 
-  const collect = (status) => ({
-    ...item,
-    accountId,
-    platform,
-    postType,
-    imageUrl,
-    caption,
-    scheduledFor: fromDateTimeInput(date, time).toISOString(),
-    status,
-  })
+  /**
+   * The entries to save — one per selected channel.
+   *
+   * "Post this to both channels" is two posts, not one post with two channels:
+   * Instagram publishes them separately, they get separate ids and separate
+   * numbers, and one can fail while the other goes out. Modelling it as one
+   * entry would only hide that until it mattered. So each channel becomes its
+   * own calendar entry, editable and cancellable on its own afterwards.
+   */
+  const collect = (status) => {
+    const when = fromDateTimeInput(date, time).toISOString()
+    const common = { postType, imageUrl, caption, scheduledFor: when, status }
+
+    return accountIds.map((accountId, index) => ({
+      // Only the first keeps this entry's id; the rest are new records. Reusing
+      // it would have every channel overwrite the same entry, leaving one post
+      // where the user asked for several.
+      ...(index === 0 ? item : {}),
+      ...common,
+      accountId,
+      platform: accounts.find((a) => a.id === accountId)?.platform ?? platform,
+    }))
+  }
 
   const write = async () => {
     if (!imageUrl) return notify(d.needImage, 'warn')
@@ -146,7 +166,9 @@ export default function PostDrawer({
     if (!imageUrl) return notify(d.needImage, 'warn')
     setPublishing(true)
     try {
-      await onPublishNow(collect(item.status))
+      // Offered on existing entries only, and those are single-channel by
+      // construction — so there is exactly one here.
+      await onPublishNow(collect(item.status)[0])
     } catch (error) {
       notify(error.message, 'warn')
     } finally {
@@ -216,30 +238,57 @@ export default function PostDrawer({
             {accounts.length === 0 ? (
               <p className="text-xs font-semibold text-amber-700">{t.schedule.noAccounts}</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {accounts.map((account) => {
-                  const p = getPlatform(account.platform)
-                  const active = accountId === account.id
-                  return (
-                    <button
-                      key={account.id}
-                      onClick={() => {
-                        setAccountId(account.id)
-                        setPlatform(account.platform)
-                      }}
-                      disabled={live}
-                      className={`chip border-2 transition-all ${
-                        active
-                          ? 'border-brand-500 bg-brand-50 text-brand-700'
-                          : 'border-slate-200 bg-white/70 text-slate-500'
-                      }`}
-                    >
-                      {p && <span className="text-sm leading-none">{p.icon}</span>}
-                      @{account.username ?? account.externalId}
-                    </button>
-                  )
-                })}
-              </div>
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {accounts.map((account) => {
+                    const p = getPlatform(account.platform)
+                    const active = accountIds.includes(account.id)
+                    return (
+                      <button
+                        key={account.id}
+                        onClick={() => {
+                          setPlatform(account.platform)
+                          // Several channels only while creating. An entry that
+                          // already exists is one post on one channel — moving
+                          // it to "both" would have to silently create a second
+                          // post, which is not what picking a chip looks like.
+                          if (!isNew) return setAccountIds([account.id])
+                          setAccountIds((current) =>
+                            current.includes(account.id)
+                              ? current.length === 1
+                                ? current
+                                : current.filter((x) => x !== account.id)
+                              : [...current, account.id]
+                          )
+                        }}
+                        disabled={live}
+                        aria-pressed={active}
+                        className={`chip border-2 transition-all ${
+                          active
+                            ? 'border-brand-500 bg-brand-50 text-brand-700'
+                            : 'border-slate-200 bg-white/70 text-slate-500'
+                        }`}
+                      >
+                        {isNew && active ? (
+                          <Check size={13} strokeWidth={3} />
+                        ) : (
+                          p && <span className="text-sm leading-none">{p.icon}</span>
+                        )}
+                        @{account.username ?? account.externalId}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Saying it in words, because "two chips are highlighted" and
+                    "this will create two separate posts" are not the same
+                    thought, and only the second one is true. */}
+                {isNew && accountIds.length > 1 && (
+                  <p className="mt-2 text-xs font-semibold text-brand-700">
+                    {fill(d.multiChannelHint, { n: accountIds.length })}
+                  </p>
+                )}
+              </>
             )}
           </div>
 

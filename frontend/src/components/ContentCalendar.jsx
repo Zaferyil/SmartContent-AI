@@ -118,11 +118,16 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
     }
   }
 
-  const save = (item) =>
-    persist(async () => {
-      await saveScheduled([item])
-      return (await fetchSchedule()).items
-    }, c.toast.saved).then(() => setDrawerItem(null))
+  // The drawer hands over a list, because one new post can cover several
+  // channels and each channel is its own entry.
+  const save = (entries) =>
+    persist(
+      async () => {
+        await saveScheduled(entries)
+        return (await fetchSchedule()).items
+      },
+      entries.length > 1 ? fill(c.toast.savedMany, { n: entries.length }) : c.toast.saved
+    ).then(() => setDrawerItem(null))
 
   const remove = (item) =>
     persist(() => deleteScheduled([item.id]), c.toast.deleted).then(() => setDrawerItem(null))
