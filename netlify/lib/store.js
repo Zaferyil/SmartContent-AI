@@ -228,6 +228,47 @@ const NETLIFY_VARS = [
 ]
 
 /**
+ * Asks Netlify's own API what it thinks of the token, and reports only the
+ * status code.
+ *
+ * Blobs answering 401 does not say whether the token is invalid, belongs to
+ * another account, or simply cannot see this site — and those need different
+ * fixes. This separates them: 200 means the token reaches this site and the
+ * problem is Blobs-specific; 401 means the token itself is rejected; 404 means
+ * it is valid but cannot see this site, which is what a different account or
+ * team looks like.
+ *
+ * The token is sent to Netlify, where it came from, and never appears in the
+ * result.
+ */
+async function probeToken() {
+  const siteID = explicitSiteId()
+  const token = explicitToken()
+  if (!siteID || !token) return null
+
+  const headers = { Authorization: `Bearer ${token}` }
+
+  // Two calls, because one cannot tell these apart. /user asks whether the
+  // token is valid at all; the site's env asks whether *this* token may touch
+  // *this* site. Note that GET /sites/{id} is useless for this — it answers 200
+  // to an invalid token, since basic site information is public.
+  const check = async (path) => {
+    try {
+      return (await fetch(`https://api.netlify.com/api/v1/${path}`, { headers })).status
+    } catch (error) {
+      return `failed: ${error.message}`
+    }
+  }
+
+  const [tokenValid, siteAccess] = await Promise.all([
+    check('user'),
+    check(`sites/${siteID}/env`),
+  ])
+
+  return { tokenValid, siteAccess }
+}
+
+/**
  * Whether this deploy can actually store anything, established by trying.
  *
  * A round trip is the only honest answer: the context can be present and the
@@ -247,6 +288,7 @@ export async function storageDiagnostics() {
     // only its length, which is what catches a truncated or padded paste.
     siteId: explicitSiteId(),
     tokenLength: explicitToken()?.length ?? 0,
+    tokenCheck: await probeToken(),
     environment,
     canRead: false,
     canWrite: false,
