@@ -32,6 +32,29 @@ const START_BUDGET_MS = 15000
 // forever would hammer the API with a request that cannot start working.
 const MAX_ATTEMPTS = 3
 
+/**
+ * Publishes a container that has finished processing and writes the result down.
+ *
+ * Both branches below reach this point, and when they each spelled it out the
+ * two copies drifted: one recorded which account had published, the other did
+ * not, so a post that happened to go out on the fast path lost its account and
+ * was left out of that account's reports.
+ */
+async function finish(item, containerId, ctx) {
+  const mediaId = await publishContainer(containerId, ctx.userId, ctx.token)
+
+  await recordPublished({
+    mediaId,
+    accountId: ctx.id,
+    imageUrl: item.imageUrl,
+    caption: item.caption,
+    postType: item.postType,
+  }).catch((e) => console.error('Could not record the published post:', e.message))
+
+  await patchScheduled(item.id, { status: 'published', mediaId, error: null })
+  return { id: item.id, state: 'published', mediaId }
+}
+
 async function advance(item) {
   // Resolved per item, not per run: two due posts can belong to two different
   // connected accounts, and publishing one as the other would be worse than
@@ -42,21 +65,13 @@ async function advance(item) {
     if (!(await isContainerReady(item.containerId, ctx.token))) {
       return { id: item.id, state: 'still-processing' }
     }
-
-    const mediaId = await publishContainer(item.containerId, ctx.userId, ctx.token)
-    await recordPublished({
-      mediaId,
-      accountId: ctx.id,
-      imageUrl: item.imageUrl,
-      caption: item.caption,
-      postType: item.postType,
-    }).catch((e) => console.error('Could not record the published post:', e.message))
-
-    await patchScheduled(item.id, { status: 'published', mediaId, error: null })
-    return { id: item.id, state: 'published', mediaId }
+    return finish(item, item.containerId, ctx)
   }
 
   const containerId = await createContainer(
+    // No videoUrl: a scheduled post does not carry one yet, so REELS and VIDEO
+    // cannot be scheduled. Adding the field here without the store that holds
+    // it would only move the failure somewhere less obvious.
     { imageUrl: item.imageUrl, caption: item.caption, postType: item.postType },
     ctx
   )
@@ -70,16 +85,7 @@ async function advance(item) {
   })
 
   if (await isContainerReady(containerId, ctx.token)) {
-    const mediaId = await publishContainer(containerId, ctx.userId, ctx.token)
-    await recordPublished({
-      mediaId,
-      imageUrl: item.imageUrl,
-      caption: item.caption,
-      postType: item.postType,
-    }).catch((e) => console.error('Could not record the published post:', e.message))
-
-    await patchScheduled(item.id, { status: 'published', mediaId, error: null })
-    return { id: item.id, state: 'published', mediaId }
+    return finish(item, containerId, ctx)
   }
 
   return { id: item.id, state: 'processing', containerId }
