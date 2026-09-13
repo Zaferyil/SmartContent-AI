@@ -91,14 +91,14 @@ export async function uploadToStorage(blob) {
       body: blob,
     })
   } catch (error) {
-    // A PUT straight to the bucket that fails at the network layer is almost
-    // always the browser refusing it: the bucket's CORS rules do not list this
-    // site. That reads as a generic "upload failed", which sends people looking
-    // at the image, the key, or their connection instead of at the one setting
-    // that is wrong — and it appears the moment a site moves to a new address.
+    // The browser reports a blocked cross-origin request and a dead network the
+    // same way: a bare TypeError with nothing in it. CORS is much the commoner
+    // cause — it is what happens the first time a site moves off localhost —
+    // but it cannot be read off the failure, so this says which is likely
+    // rather than asserting one, and carries the browser's own words along.
     throw Object.assign(
-      new Error(`storage-cors:${window.location.origin}`),
-      { code: 'storage-cors', cause: error }
+      new Error(`storage-blocked:${window.location.origin}:${error.message}`),
+      { code: 'storage-blocked', origin: window.location.origin, cause: error }
     )
   }
 

@@ -55,8 +55,10 @@ export default function ImagePicker({ onUploaded, notify }) {
       onUploaded(null)
 
       const message =
-        error.code === 'storage-cors'
-          ? m.corsBlocked.replace('{origin}', window.location.origin)
+        error.code === 'storage-blocked'
+          ? m.uploadBlocked
+              .replace('{origin}', error.origin)
+              .replace('{reason}', error.cause?.message ?? '')
           : error.message === 'not-an-image'
             ? m.notAnImage
             : m.uploadFailed
