@@ -36,6 +36,24 @@ const hasBlobsContext = () =>
   Boolean(globalThis.netlifyBlobsContext || process.env.NETLIFY_BLOBS_CONTEXT)
 
 /**
+ * Reads the first of these that has a value, trimmed.
+ *
+ * Trimming matters: a token pasted into a settings field often arrives with a
+ * stray newline, which turns a perfectly good credential into a malformed
+ * Authorization header and a rejection that looks like a permissions problem.
+ */
+const envValue = (...names) => {
+  for (const name of names) {
+    const value = process.env[name]?.trim()
+    if (value) return value
+  }
+  return null
+}
+
+export const explicitSiteId = () => envValue('BLOBS_SITE_ID', 'SITE_ID')
+const explicitToken = () => envValue('BLOBS_TOKEN', 'NETLIFY_API_TOKEN')
+
+/**
  * Opens the store, by hand when Netlify has not done it for us.
  *
  * Normally the runtime injects NETLIFY_BLOBS_CONTEXT and `getStore(name)` just
@@ -47,8 +65,8 @@ const hasBlobsContext = () =>
 function openStore() {
   if (hasBlobsContext()) return getStore(STORE_NAME)
 
-  const siteID = process.env.BLOBS_SITE_ID || process.env.SITE_ID
-  const token = process.env.BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN
+  const siteID = explicitSiteId()
+  const token = explicitToken()
 
   if (siteID && token) return getStore(STORE_NAME, { siteID, token })
 
@@ -79,13 +97,37 @@ function blobsUnavailable(cause) {
       'Fix: create a Netlify personal access token (User settings → Applications → Personal access tokens) ' +
       'and add it to this site as the environment variable BLOBS_TOKEN, then redeploy. ' +
       `(NETLIFY_BLOBS_CONTEXT ${hasBlobsContext() ? 'present' : 'missing'}; ` +
-      `SITE_ID ${process.env.SITE_ID ? 'present' : 'missing'}; ` +
-      `BLOBS_TOKEN ${process.env.BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN ? 'present' : 'missing'}` +
+      `SITE_ID ${explicitSiteId() ? 'present' : 'missing'}; ` +
+      `BLOBS_TOKEN ${explicitToken() ? 'present' : 'missing'}` +
       `${cause ? `; ${cause}` : ''})`
   )
   error.statusCode = 503
   return error
 }
+
+/**
+ * Blobs answered, and said no.
+ *
+ * A rejected token is a different problem from a missing one and needs a
+ * different answer, so it gets its own message rather than being folded into
+ * "unavailable" — the token exists and is simply not allowed near this site.
+ */
+function blobsRejected(cause) {
+  const error = new Error(
+    'Netlify rejected the storage token: it is not allowed to access this site. ' +
+      'Check that BLOBS_TOKEN is a personal access token created by the same Netlify ' +
+      'account that owns this site (User settings → Applications → Personal access tokens), ' +
+      `and that it was pasted in full. (site ${explicitSiteId() ?? 'unknown'}${
+        cause ? `; ${cause}` : ''
+      })`
+  )
+  error.statusCode = 503
+  return error
+}
+
+/** Blobs reporting that the credentials were understood but refused. */
+const isBlobsAccessDenied = (error) =>
+  /401|403|Access Denied|does not have access/i.test(error?.message ?? '')
 
 const localPath = (key) => path.join(LOCAL_DIR, `${key}.json`)
 
@@ -115,6 +157,7 @@ export async function readDoc(key) {
     useLocalFile = false
     return { items: result?.data ?? [], etag: result?.etag ?? null }
   } catch (error) {
+    if (isBlobsAccessDenied(error)) throw blobsRejected(error.message)
     if (!isMissingBlobsEnv(error)) throw error
 
     // On a server the file fallback cannot work and must not be tried: an empty
@@ -199,10 +242,11 @@ export async function storageDiagnostics() {
     serverless: isServerless(),
     blobsContext: hasBlobsContext(),
     // Reported so the manual route can be told apart from the automatic one.
-    explicitCredentials: Boolean(
-      (process.env.BLOBS_SITE_ID || process.env.SITE_ID) &&
-        (process.env.BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN)
-    ),
+    explicitCredentials: Boolean(explicitSiteId() && explicitToken()),
+    // The site id is shown openly in Netlify's own UI. The token never appears;
+    // only its length, which is what catches a truncated or padded paste.
+    siteId: explicitSiteId(),
+    tokenLength: explicitToken()?.length ?? 0,
     environment,
     canRead: false,
     canWrite: false,
