@@ -153,3 +153,15 @@ Görseller genelde anında hazır olduğu için normal durumda tek istek yetiyor
 - **Token 60 gün geçerli.** Dolmadan yenilenmeli; otomatik yenileme henüz yazılmadı.
 - **Video ve reels** arayüzde yok. Backend `REELS` ve `VIDEO` türlerini kabul ediyor ve yukarıdaki yoklama akışı işleme süresi ne olursa olsun bekleyebiliyor — yani 10 saniye limiti artık engel değil. Eksik olan tarafı arayüz: `ImagePicker` sadece görsel alıp JPEG'e çeviriyor, video yükleme yolu yazılmadı. Video için ayrıca boyut, süre ve format kuralları da doğrulanmalı.
 - **Başka kullanıcılar** uygulamayı kullanacaksa Meta App Review şart (2-4 hafta).
+
+## Güncelleme
+
+```bash
+npm run update
+```
+
+Depodaki değişiklikleri çeker ve paketleri kurar.
+
+> `git pull` bu projede sürekli "your local changes would be overwritten" ile duruyordu: `npm install` her çalıştığında `package-lock.json`'ı, `netlify dev` ise `.gitignore`'ı yeniden yazıyor. `npm run update` bu izlenen dosyalardaki yerel değişiklikleri atıp çekiyor.
+>
+> `.env` bundan **etkilenmez** — gitignore'da, izlenmiyor. Ama depodaki bir dosyayı elle düzenlediysen bu komut o düzenlemeyi siler.
