@@ -1,6 +1,7 @@
 import { getStore } from '@netlify/blobs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { isDeployed } from './runtime.js'
 
 /**
  * Persistence for posts, accounts, the schedule and settings.
@@ -27,22 +28,34 @@ import path from 'node:path'
 const STORE_NAME = 'smartcontentai'
 const LOCAL_DIR = path.resolve(process.cwd(), '.netlify/local-store')
 
-/**
- * True inside a deployed function, where there is no writable disk.
- *
- * The Lambda variables alone are not enough: the Netlify CLI sets them while
- * emulating functions on a laptop, where the disk is real and the file
- * fallback is exactly what should happen. NETLIFY_DEV is what separates the
- * emulation from the real thing.
- */
-const isServerless = () =>
-  !process.env.NETLIFY_DEV &&
-  (Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT) ||
-    process.cwd().startsWith('/var/task'))
+/** True inside a deployed function, where there is no writable disk. */
+const isServerless = isDeployed
 
 /** What Netlify Blobs needs in order to find the site it belongs to. */
 const hasBlobsContext = () =>
   Boolean(globalThis.netlifyBlobsContext || process.env.NETLIFY_BLOBS_CONTEXT)
+
+/**
+ * Opens the store, by hand when Netlify has not done it for us.
+ *
+ * Normally the runtime injects NETLIFY_BLOBS_CONTEXT and `getStore(name)` just
+ * works. On this site it does not, while SITE_ID is present — so Blobs is
+ * reachable, it just has not been handed the credentials. Netlify documents
+ * passing siteID and token explicitly for exactly this case, and that turns an
+ * unusable deploy into a working one without waiting for the automatic path.
+ */
+function openStore() {
+  if (hasBlobsContext()) return getStore(STORE_NAME)
+
+  const siteID = process.env.BLOBS_SITE_ID || process.env.SITE_ID
+  const token = process.env.BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN
+
+  if (siteID && token) return getStore(STORE_NAME, { siteID, token })
+
+  // Neither route available: let Blobs raise its own error, which the callers
+  // turn into the message explaining what to configure.
+  return getStore(STORE_NAME)
+}
 
 // Decided on first use and remembered: Blobs either works in this environment
 // or it does not, and the answer cannot change mid-process.
@@ -63,10 +76,12 @@ function isMissingBlobsEnv(error) {
 function blobsUnavailable(cause) {
   const error = new Error(
     'Storage is unavailable: this deploy cannot reach Netlify Blobs, so nothing can be saved or read. ' +
-      'Check that Blobs is enabled for the site (Site configuration → Blobs) and redeploy. ' +
-      `(NETLIFY_BLOBS_CONTEXT ${hasBlobsContext() ? 'is present' : 'is missing'}${
-        cause ? `; ${cause}` : ''
-      })`
+      'Fix: create a Netlify personal access token (User settings → Applications → Personal access tokens) ' +
+      'and add it to this site as the environment variable BLOBS_TOKEN, then redeploy. ' +
+      `(NETLIFY_BLOBS_CONTEXT ${hasBlobsContext() ? 'present' : 'missing'}; ` +
+      `SITE_ID ${process.env.SITE_ID ? 'present' : 'missing'}; ` +
+      `BLOBS_TOKEN ${process.env.BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN ? 'present' : 'missing'}` +
+      `${cause ? `; ${cause}` : ''})`
   )
   error.statusCode = 503
   return error
@@ -95,7 +110,7 @@ export async function readDoc(key) {
   if (useLocalFile) return readLocal(key)
 
   try {
-    const store = getStore(STORE_NAME)
+    const store = openStore()
     const result = await store.getWithMetadata(key, { type: 'json' })
     useLocalFile = false
     return { items: result?.data ?? [], etag: result?.etag ?? null }
@@ -128,7 +143,7 @@ export async function writeDoc(key, items, etag) {
     return true
   }
 
-  const store = getStore(STORE_NAME)
+  const store = openStore()
   const result = await store.setJSON(
     key,
     items,
@@ -183,6 +198,11 @@ export async function storageDiagnostics() {
     mode: useLocalFile ? 'local-file' : 'netlify-blobs',
     serverless: isServerless(),
     blobsContext: hasBlobsContext(),
+    // Reported so the manual route can be told apart from the automatic one.
+    explicitCredentials: Boolean(
+      (process.env.BLOBS_SITE_ID || process.env.SITE_ID) &&
+        (process.env.BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN)
+    ),
     environment,
     canRead: false,
     canWrite: false,

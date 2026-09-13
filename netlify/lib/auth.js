@@ -14,10 +14,9 @@ import { createHash, timingSafeEqual } from 'node:crypto'
  * the same full access.
  */
 
-export const PASSWORD_HEADER = 'x-app-password'
+import { isDeployed } from './runtime.js'
 
-/** True on a deployed site, false under `netlify dev` or `functions:serve`. */
-const isDeployed = () => Boolean(process.env.NETLIFY) && !process.env.NETLIFY_DEV
+export const PASSWORD_HEADER = 'x-app-password'
 
 // Hashing first means both sides are always 32 bytes, so the comparison cannot
 // leak the password's length and timingSafeEqual cannot throw on a mismatch.

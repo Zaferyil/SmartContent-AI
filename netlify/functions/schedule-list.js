@@ -2,6 +2,7 @@ import { json, CORS } from '../lib/instagram.js'
 import { listScheduled, PUBLISHABLE_PLATFORMS } from '../lib/schedule.js'
 import { readSettings } from '../lib/settings.js'
 import { requireAuth } from '../lib/auth.js'
+import { isDeployed } from '../lib/runtime.js'
 
 /**
  * Everything the calendar screen needs in one request.
@@ -29,7 +30,7 @@ export const handler = async (event) => {
       publishable: PUBLISHABLE_PLATFORMS,
       // The cron only exists on a deployed site. Locally nothing publishes on
       // its own, and the screen has to say so instead of implying otherwise.
-      cronConfigured: Boolean(process.env.NETLIFY && !process.env.NETLIFY_DEV),
+      cronConfigured: isDeployed(),
     })
   } catch (error) {
     console.error('Could not list the schedule:', error.message)
