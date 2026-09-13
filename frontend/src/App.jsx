@@ -5,7 +5,7 @@ import LanguagePicker from './components/LanguagePicker'
 import Toast from './components/Toast'
 import PlatformSelector from './components/PlatformSelector'
 import ContentCreator from './components/ContentCreator'
-import ScheduleManager from './components/ScheduleManager'
+import ContentCalendar from './components/ContentCalendar'
 import Analytics from './components/Analytics'
 import ChannelSettings from './components/ChannelSettings'
 
@@ -53,7 +53,7 @@ function Shell() {
   const screens = {
     platforms: <PlatformSelector selected={selectedPlatforms} onChange={setSelectedPlatforms} />,
     create: <ContentCreator selected={selectedPlatforms} notify={notify} />,
-    schedule: <ScheduleManager selected={selectedPlatforms} notify={notify} onGoToPlatforms={() => setActiveTab('platforms')} />,
+    schedule: <ContentCalendar selected={selectedPlatforms} notify={notify} onGoToCreate={() => setActiveTab('create')} />,
     analytics: <Analytics notify={notify} onGoToCreate={() => setActiveTab('create')} />,
     settings: <ChannelSettings selected={selectedPlatforms} notify={notify} onGoToPlatforms={() => setActiveTab('platforms')} />,
   }

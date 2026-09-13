@@ -20,8 +20,12 @@ const HOST =
 export const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
+  // Every GET here reports state that changes under the browser — the calendar
+  // after a save, a job while it is still running. Without this the browser is
+  // free to answer from cache and show work that already happened as missing.
+  'Cache-Control': 'no-store',
 }
 
 export function json(statusCode, body) {
@@ -75,6 +79,61 @@ export async function graph(path, { method = 'GET', params = {}, token } = {}) {
   }
 
   return data
+}
+
+const MAX_CAPTION = 2200
+
+/**
+ * What each post type needs from the Graph API.
+ *
+ * `media_type` is omitted for a feed image — that is the endpoint's default and
+ * sending "IMAGE" is rejected. Stories carry no caption: Instagram ignores the
+ * field, so sending one would only mislead the caller.
+ */
+export const POST_TYPES = {
+  FEED: { mediaType: null, needsVideo: false, caption: true },
+  STORY: { mediaType: 'STORIES', needsVideo: false, caption: false },
+  REELS: { mediaType: 'REELS', needsVideo: true, caption: true },
+  VIDEO: { mediaType: 'VIDEO', needsVideo: true, caption: true },
+}
+
+const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 })
+
+/**
+ * First half of the two-step publish: hands Instagram the media to fetch.
+ *
+ * Shared by the browser-driven publish and the cron, so the two cannot drift
+ * on which post type needs which field — a mismatch there is rejected by Meta
+ * with a message that explains nothing.
+ *
+ * @returns {Promise<string>} the container id
+ */
+export async function createContainer({ imageUrl, videoUrl, caption = '', postType }, ctx) {
+  const spec = POST_TYPES[postType]
+  if (!spec) {
+    throw badRequest(
+      `Unknown postType "${postType}". Use one of: ${Object.keys(POST_TYPES).join(', ')}`
+    )
+  }
+
+  const mediaUrl = spec.needsVideo ? videoUrl : imageUrl
+  if (!mediaUrl) {
+    throw badRequest(spec.needsVideo ? `${postType} needs a videoUrl` : `${postType} needs an imageUrl`)
+  }
+  // Instagram fetches this itself, so localhost and auth-gated URLs cannot work.
+  if (!/^https:\/\//i.test(mediaUrl)) {
+    throw badRequest('Media URL must be publicly reachable over HTTPS')
+  }
+  if (spec.caption && caption.length > MAX_CAPTION) {
+    throw badRequest(`Caption exceeds the ${MAX_CAPTION} character limit`)
+  }
+
+  const params = spec.needsVideo ? { video_url: videoUrl } : { image_url: imageUrl }
+  if (spec.mediaType) params.media_type = spec.mediaType
+  if (spec.caption) params.caption = caption
+
+  const container = await graph(`${ctx.userId}/media`, { method: 'POST', params, token: ctx.token })
+  return container.id
 }
 
 /**

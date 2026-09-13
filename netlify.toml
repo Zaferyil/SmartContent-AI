@@ -9,6 +9,16 @@
 [functions]
   node_bundler = "esbuild"
 
+# The publisher. Every five minutes it takes whatever is due and moves it one
+# step: create the media container, or publish the container it created last
+# time. A scheduled function is cut off at 30s and one publish measured 9.5s,
+# so it deliberately does not try to drain the queue in a single run.
+#
+# This fires only on a published deploy — Netlify Dev does not run schedules.
+# Locally, POST to the function to trigger a run by hand.
+[functions."schedule-run"]
+  schedule = "*/5 * * * *"
+
 # `netlify dev` cannot autodetect the framework from the repo root, because the
 # Vite app lives in frontend/. Without this it falls back to a static server and
 # serves the raw repo instead of the app.

@@ -102,21 +102,142 @@ export const translations = {
     },
 
     schedule: {
-      title: 'Veröffentlichungsplan',
-      subtitle: 'Lege fest, wann und wie oft gepostet wird.',
-      startLabel: 'Startzeit',
-      intervalLabel: 'Abstand zwischen Posts',
-      countLabel: 'Anzahl Beiträge',
-      everyHours: 'Stunden',
-      add: 'Zum Kalender hinzufügen',
-      activeTitle: 'Aktive Pläne',
-      empty: 'Noch keine Pläne erstellt.',
-      emptyHint: 'Wähle oben Zeit und Abstand, um deinen ersten Plan zu erstellen.',
-      delete: 'Löschen',
-      added: 'Plan zum Kalender hinzugefügt.',
-      removed: 'Plan gelöscht.',
-      posts: 'Beiträge',
-      preview: 'Veröffentlichungszeiten',
+      title: 'Content-Kalender',
+      subtitle: 'Plane, verwalte und automatisiere deine Social-Media-Inhalte.',
+      createPost: 'Beitrag erstellen',
+      aiPlan: 'AI planen',
+      loading: 'Kalender wird geladen …',
+
+      today: 'Heute',
+      views: { day: 'Tag', week: 'Woche', month: 'Monat', list: 'Liste' },
+      allChannels: 'Alle Kanäle',
+      previousPeriod: 'Zurück',
+      nextPeriod: 'Weiter',
+
+      todayTitle: 'Heute',
+      todayNone: 'Nichts geplant',
+      todayOne: '1 geplanter Beitrag',
+      todayMany: '{n} geplante Beiträge',
+      nextUp: 'Als Nächstes',
+      nothingScheduled: 'Nichts geplant',
+      morePosts: '+{n} weitere',
+
+      status: {
+        draft: 'Entwurf',
+        scheduled: 'Geplant',
+        publishing: 'Wird veröffentlicht',
+        published: 'Veröffentlicht',
+        failed: 'Fehlgeschlagen',
+      },
+
+      scheduledContent: 'Geplante Beiträge',
+      queueTitle: 'Veröffentlichungs-Warteschlange',
+      queueEmpty: 'Nichts in der Warteschlange.',
+      tomorrow: 'Morgen',
+
+      columns: {
+        date: 'Datum',
+        time: 'Uhrzeit',
+        content: 'Inhalt',
+        platform: 'Kanal',
+        status: 'Status',
+        actions: 'Aktionen',
+      },
+
+      actions: {
+        edit: 'Bearbeiten',
+        reschedule: 'Neu planen',
+        duplicate: 'Duplizieren',
+        delete: 'Löschen',
+        publishNow: 'Jetzt veröffentlichen',
+        retry: 'Erneut versuchen',
+        save: 'Speichern',
+        cancel: 'Abbrechen',
+      },
+
+      drawer: {
+        newTitle: 'Neuer Beitrag',
+        editTitle: 'Beitrag bearbeiten',
+        preview: 'Vorschau',
+        platform: 'Kanal',
+        date: 'Datum',
+        time: 'Uhrzeit',
+        caption: 'Text',
+        captionPlaceholder: 'Text des Beitrags …',
+        media: 'Bild',
+        hashtags: 'Hashtags',
+        noHashtags: 'Keine Hashtags im Text.',
+        status: 'Status',
+        writeWithAi: 'Text mit KI schreiben',
+        writing: 'KI schreibt …',
+        needImage: 'Lade zuerst ein Bild hoch.',
+        needTime: 'Wähle Datum und Uhrzeit.',
+        failedTitle: 'Veröffentlichung fehlgeschlagen',
+        keepDraft: 'Als Entwurf speichern',
+        schedule: 'Einplanen',
+        notPublishable:
+          'Für diesen Kanal ist noch keine Veröffentlichung eingerichtet. Der Beitrag bleibt ein Entwurf.',
+      },
+
+      ai: {
+        cardTitle: 'AI Smart Scheduling',
+        cardBody:
+          'Lass die KI die besten Veröffentlichungszeiten aus deiner Reichweite und deinen bisherigen Beiträgen ableiten.',
+        measured: 'Aus {n} gemessenen Beiträgen abgeleitet',
+        preferred: 'Empfohlene Startzeiten',
+        preferredWhy:
+          'Noch {n} Beiträge nötig, bevor Zeiten aus echter Performance abgeleitet werden können. Bis dahin werden deine bevorzugten Zeiten verwendet.',
+        recommendedTime: 'Empfohlene Zeit',
+        modalTitle: 'AI Smart Scheduling',
+        count: 'Anzahl Beiträge',
+        channels: 'Kanäle',
+        period: 'Zeitraum',
+        from: 'Von',
+        to: 'Bis',
+        strategy: 'Strategie',
+        strategies: {
+          engagement: 'Beste Interaktionszeiten',
+          even: 'Gleichmäßig verteilen',
+          preferred: 'Bevorzugte Zeiten',
+        },
+        goal: 'Hauptziel',
+        goals: { engagement: 'Interaktion', reach: 'Reichweite', consistency: 'Regelmäßigkeit' },
+        submit: 'Mit AI einplanen',
+        slotsNote:
+          'Es werden {n} leere Entwürfe zu diesen Zeiten angelegt. Füge jedem ein Bild und einen Text hinzu, damit er veröffentlicht werden kann.',
+        noRoom: 'Im gewählten Zeitraum liegt kein Termin mehr in der Zukunft.',
+        created: '{n} Entwürfe im Kalender angelegt.',
+      },
+
+      settings: {
+        title: 'Veröffentlichungs-Einstellungen',
+        timezone: 'Zeitzone',
+        postsPerDay: 'Beiträge pro Tag',
+        preferredTimes: 'Bevorzugte Zeiten',
+        addTime: 'Zeit hinzufügen',
+        saved: 'Einstellungen gespeichert.',
+        tzMismatch:
+          'Dein Browser läuft auf {browser}. Zeiten werden in der Browser-Zeitzone angezeigt und gespeichert.',
+      },
+
+      empty: {
+        title: 'Noch keine geplanten Inhalte',
+        body: 'Erstelle deinen ersten Beitrag oder lass die KI deinen Veröffentlichungsplan aufbauen.',
+        openEditor: 'Zum vollständigen Editor',
+      },
+
+      cronOff:
+        'Automatische Veröffentlichung läuft erst auf der veröffentlichten Netlify-Seite. Lokal bleiben geplante Beiträge stehen, bis du sie selbst veröffentlichst.',
+
+      toast: {
+        saved: 'Beitrag gespeichert.',
+        deleted: 'Beitrag gelöscht.',
+        rescheduled: 'Beitrag neu geplant.',
+        duplicated: 'Beitrag dupliziert.',
+        published: 'Beitrag veröffentlicht.',
+        retrying: 'Wird erneut versucht …',
+      },
+
       needPlatform: 'Wähle zuerst unter „Kanäle“ mindestens einen Kanal aus.',
     },
 
@@ -287,21 +408,142 @@ export const translations = {
     },
 
     schedule: {
-      title: 'Publishing schedule',
-      subtitle: 'Decide when and how often you post.',
-      startLabel: 'Start time',
-      intervalLabel: 'Gap between posts',
-      countLabel: 'Number of posts',
-      everyHours: 'hours',
-      add: 'Add to schedule',
-      activeTitle: 'Active plans',
-      empty: 'No plans yet.',
-      emptyHint: 'Pick a time and interval above to create your first plan.',
-      delete: 'Delete',
-      added: 'Plan added to schedule.',
-      removed: 'Plan deleted.',
-      posts: 'posts',
-      preview: 'Publishing times',
+      title: 'Content Calendar',
+      subtitle: 'Plan, manage and automate your social media content.',
+      createPost: 'Create post',
+      aiPlan: 'AI plan',
+      loading: 'Loading calendar …',
+
+      today: 'Today',
+      views: { day: 'Day', week: 'Week', month: 'Month', list: 'List' },
+      allChannels: 'All channels',
+      previousPeriod: 'Previous',
+      nextPeriod: 'Next',
+
+      todayTitle: 'Today',
+      todayNone: 'Nothing scheduled',
+      todayOne: '1 scheduled post',
+      todayMany: '{n} scheduled posts',
+      nextUp: 'Next up',
+      nothingScheduled: 'Nothing scheduled',
+      morePosts: '+{n} more',
+
+      status: {
+        draft: 'Draft',
+        scheduled: 'Scheduled',
+        publishing: 'Publishing',
+        published: 'Published',
+        failed: 'Failed',
+      },
+
+      scheduledContent: 'Scheduled content',
+      queueTitle: 'Publishing queue',
+      queueEmpty: 'Nothing queued.',
+      tomorrow: 'Tomorrow',
+
+      columns: {
+        date: 'Date',
+        time: 'Time',
+        content: 'Content',
+        platform: 'Channel',
+        status: 'Status',
+        actions: 'Actions',
+      },
+
+      actions: {
+        edit: 'Edit',
+        reschedule: 'Reschedule',
+        duplicate: 'Duplicate',
+        delete: 'Delete',
+        publishNow: 'Publish now',
+        retry: 'Retry',
+        save: 'Save',
+        cancel: 'Cancel',
+      },
+
+      drawer: {
+        newTitle: 'New post',
+        editTitle: 'Edit post',
+        preview: 'Preview',
+        platform: 'Channel',
+        date: 'Date',
+        time: 'Time',
+        caption: 'Caption',
+        captionPlaceholder: 'Post caption …',
+        media: 'Image',
+        hashtags: 'Hashtags',
+        noHashtags: 'No hashtags in the caption.',
+        status: 'Status',
+        writeWithAi: 'Write caption with AI',
+        writing: 'AI is writing …',
+        needImage: 'Upload an image first.',
+        needTime: 'Pick a date and time.',
+        failedTitle: 'Publishing failed',
+        keepDraft: 'Save as draft',
+        schedule: 'Schedule',
+        notPublishable:
+          'Publishing is not connected for this channel yet. The post stays a draft.',
+      },
+
+      ai: {
+        cardTitle: 'AI Smart Scheduling',
+        cardBody:
+          'Let AI derive the best publishing times from your reach and your previous posts.',
+        measured: 'Derived from {n} measured posts',
+        preferred: 'Recommended starting times',
+        preferredWhy:
+          '{n} more posts are needed before times can be derived from real performance. Until then your preferred times are used.',
+        recommendedTime: 'Recommended time',
+        modalTitle: 'AI Smart Scheduling',
+        count: 'Number of posts',
+        channels: 'Channels',
+        period: 'Period',
+        from: 'From',
+        to: 'To',
+        strategy: 'Scheduling strategy',
+        strategies: {
+          engagement: 'Best engagement times',
+          even: 'Evenly distribute',
+          preferred: 'Preferred times',
+        },
+        goal: 'Primary goal',
+        goals: { engagement: 'Engagement', reach: 'Reach', consistency: 'Consistency' },
+        submit: 'Schedule with AI',
+        slotsNote:
+          'This creates {n} empty drafts at these times. Add an image and caption to each before it can publish.',
+        noRoom: 'No slot in the chosen period is still in the future.',
+        created: '{n} drafts added to the calendar.',
+      },
+
+      settings: {
+        title: 'Publishing settings',
+        timezone: 'Timezone',
+        postsPerDay: 'Posts per day',
+        preferredTimes: 'Preferred publishing times',
+        addTime: 'Add time',
+        saved: 'Settings saved.',
+        tzMismatch:
+          'Your browser runs on {browser}. Times are shown and stored in the browser timezone.',
+      },
+
+      empty: {
+        title: 'No scheduled content yet',
+        body: 'Create your first post or let AI build your publishing schedule.',
+        openEditor: 'Open the full editor',
+      },
+
+      cronOff:
+        'Automatic publishing only runs on the deployed Netlify site. Locally, scheduled posts wait until you publish them yourself.',
+
+      toast: {
+        saved: 'Post saved.',
+        deleted: 'Post deleted.',
+        rescheduled: 'Post rescheduled.',
+        duplicated: 'Post duplicated.',
+        published: 'Post published.',
+        retrying: 'Retrying …',
+      },
+
       needPlatform: 'Select at least one channel under Channels first.',
     },
 
