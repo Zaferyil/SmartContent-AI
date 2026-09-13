@@ -5,6 +5,7 @@ import {
   isContainerReady,
   publishContainer,
 } from '../lib/instagram.js'
+import { recordPublished } from '../lib/posts.js'
 
 /**
  * Second half of the two-step publish.
@@ -32,7 +33,7 @@ export const handler = async (event) => {
       return json(400, { error: 'Request body is not valid JSON' })
     }
 
-    const { containerId } = body
+    const { containerId, imageUrl, caption, postType } = body
     if (!containerId) return json(400, { error: 'Provide a containerId' })
 
     if (!(await isContainerReady(containerId, token))) {
@@ -40,6 +41,9 @@ export const handler = async (event) => {
     }
 
     const mediaId = await publishContainer(containerId, userId, token)
+    await recordPublished({ mediaId, imageUrl, caption, postType }).catch((e) =>
+      console.error('Could not record the published post:', e.message)
+    )
     return json(200, { ok: true, done: true, mediaId, containerId })
   } catch (error) {
     console.error('Instagram publish finish failed:', error.message)

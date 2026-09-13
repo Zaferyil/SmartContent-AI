@@ -6,6 +6,7 @@ import {
   isContainerReady,
   publishContainer,
 } from '../lib/instagram.js'
+import { recordPublished } from '../lib/posts.js'
 
 const MAX_CAPTION = 2200
 
@@ -83,10 +84,15 @@ export const handler = async (event) => {
     // sitting on the clock until Netlify cuts it off at 10s.
     if (await isContainerReady(container.id, token)) {
       const mediaId = await publishContainer(container.id, userId, token)
+      // Recorded here rather than in the browser: a closed tab must not cost us
+      // the history the analytics screens are built on.
+      await recordPublished({ mediaId, imageUrl, caption, postType }).catch((e) =>
+        console.error('Could not record the published post:', e.message)
+      )
       return json(200, { ok: true, done: true, postType, mediaId, containerId: container.id })
     }
 
-    return json(202, { ok: true, done: false, postType, containerId: container.id })
+    return json(202, { ok: true, done: false, postType, containerId: container.id, imageUrl, caption })
   } catch (error) {
     console.error('Instagram publish failed:', error.message)
     return json(error.statusCode || 500, {

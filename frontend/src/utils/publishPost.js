@@ -44,8 +44,13 @@ export async function publishPost({ imageUrl, caption, postType }, { onProgress 
     attempt += 1
     onProgress?.(attempt)
 
+    // The post details ride along so the finish step can record the published
+    // post itself — it is the half that publishes when the media was slow.
     const status = await postJson('/.netlify/functions/instagram-publish-finish', {
       containerId: started.containerId,
+      imageUrl,
+      caption,
+      postType,
     })
 
     if (status.done) return status.mediaId
