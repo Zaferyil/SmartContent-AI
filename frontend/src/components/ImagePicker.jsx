@@ -62,7 +62,12 @@ export default function ImagePicker({ onUploaded, notify }) {
               .replace('{reason}', error.cause?.message ?? '')
           : error.message === 'not-an-image'
             ? m.notAnImage
-            : m.uploadFailed
+            : // A refusal from our own function names the setting that is wrong.
+              // Replacing it with "upload failed" would hide the one detail
+              // that makes it fixable.
+              error.code === 'server'
+              ? error.message
+              : m.uploadFailed
 
       setWarning(message)
       notify(message, 'warn')

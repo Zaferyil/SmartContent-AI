@@ -79,7 +79,13 @@ export async function api(path, { method, body, query } = {}) {
   const data = await response.json().catch(() => ({}))
 
   if (!response.ok && response.status !== 202) {
-    throw new Error(data.error || `Request failed (HTTP ${response.status})`)
+    // Tagged so callers can tell a message written by our own server — which
+    // says what is misconfigured and is worth showing verbatim — from a thrown
+    // internal token like 'encode-failed' that only makes sense in code.
+    throw Object.assign(new Error(data.error || `Request failed (HTTP ${response.status})`), {
+      code: 'server',
+      status: response.status,
+    })
   }
 
   return data

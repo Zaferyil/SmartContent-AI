@@ -25,12 +25,19 @@ const CONFIG_VARS = {
   publicBase: 'R2_PUBLIC_BASE_URL',
 }
 
+// A Cloudflare account id is a 32-character hex string. Anything else — most
+// easily the bucket name, which sits right next to it in the R2 dashboard —
+// builds a hostname that does not resolve. The browser then reports a bare
+// "Failed to fetch", indistinguishable from a CORS rejection, and the real
+// cause is invisible. Catching it here names the variable instead.
+const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i
+
 function requireConfig() {
   const config = {}
   const missing = []
 
   for (const [field, envName] of Object.entries(CONFIG_VARS)) {
-    const value = process.env[envName]
+    const value = process.env[envName]?.trim()
     if (value) config[field] = value
     else missing.push(envName)
   }
@@ -40,6 +47,17 @@ function requireConfig() {
     error.statusCode = 500
     throw error
   }
+
+  if (!ACCOUNT_ID_PATTERN.test(config.accountId)) {
+    const error = new Error(
+      `${CONFIG_VARS.accountId} does not look like a Cloudflare account id ` +
+        '(expected 32 hex characters). Copy it from the R2 overview page — ' +
+        'it is not the bucket name.'
+    )
+    error.statusCode = 500
+    throw error
+  }
+
   return config
 }
 
