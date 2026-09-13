@@ -1,14 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const CORS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-}
-
-const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stringify(body) })
-
 const MAX_CAPTION = 2200
 
 const LANGUAGE_NAMES = { en: 'English', de: 'German' }
@@ -54,64 +45,54 @@ Never:
 - Claim the child in the photo is a student, or name anyone.
 - Use guilt or comparison to other children.`
 
+const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 })
+
 /**
- * Writes an Instagram caption from the post's own image.
+ * Writes Instagram copy from the post's own image.
  *
- * Claude reads the image, so the copy talks about what is actually in the
+ * Claude reads the image, so the text talks about what is actually in the
  * picture instead of restating a topic. The image must be publicly reachable —
  * an R2 public URL from upload-url is exactly that.
  *
- * POST { "imageUrl": "https://...", "language": "en"|"de", "postType": "FEED"|"STORY", "topic": "optional steer" }
- *   ->  200 { ok: true, caption: "..." }
+ * Throws with a `statusCode` on bad input or an API failure, so the caller can
+ * report it the same way whether it runs in a request or a background job.
+ *
+ * @returns {Promise<{caption: string, model: string, usage: object}>}
  */
-export const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
-  if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
-
+export async function writeCaption({
+  imageUrl,
+  language = 'en',
+  postType = 'FEED',
+  topic = '',
+  tone = 'friendly',
+  format = 'caption',
+}) {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return json(500, { error: 'Missing environment variable: ANTHROPIC_API_KEY' })
+    throw Object.assign(new Error('Missing environment variable: ANTHROPIC_API_KEY'), {
+      statusCode: 500,
+    })
   }
 
-  let body
-  try {
-    body = JSON.parse(event.body || '{}')
-  } catch {
-    return json(400, { error: 'Request body is not valid JSON' })
-  }
-
-  const {
-    imageUrl,
-    language = 'en',
-    postType = 'FEED',
-    topic = '',
-    tone = 'friendly',
-    format = 'caption',
-  } = body
-
-  if (!imageUrl) return json(400, { error: 'Provide an imageUrl' })
+  if (!imageUrl) throw badRequest('Provide an imageUrl')
   if (!/^https:\/\//i.test(imageUrl)) {
-    return json(400, { error: 'Image URL must be publicly reachable over HTTPS' })
+    throw badRequest('Image URL must be publicly reachable over HTTPS')
   }
 
   const languageName = LANGUAGE_NAMES[language]
   if (!languageName) {
-    return json(400, {
-      error: `Unsupported language "${language}". Use one of: ${Object.keys(LANGUAGE_NAMES).join(', ')}`,
-    })
+    throw badRequest(
+      `Unsupported language "${language}". Use one of: ${Object.keys(LANGUAGE_NAMES).join(', ')}`
+    )
   }
 
   const toneBrief = TONES[tone]
   if (!toneBrief) {
-    return json(400, {
-      error: `Unknown tone "${tone}". Use one of: ${Object.keys(TONES).join(', ')}`,
-    })
+    throw badRequest(`Unknown tone "${tone}". Use one of: ${Object.keys(TONES).join(', ')}`)
   }
 
   const formatBrief = FORMATS[format]
   if (!formatBrief) {
-    return json(400, {
-      error: `Unknown format "${format}". Use one of: ${Object.keys(FORMATS).join(', ')}`,
-    })
+    throw badRequest(`Unknown format "${format}". Use one of: ${Object.keys(FORMATS).join(', ')}`)
   }
 
   // A story carries no caption field, so this text is meant to go on the image
@@ -131,8 +112,9 @@ export const handler = async (event) => {
     const response = await client.beta.messages.create({
       model: 'claude-opus-5',
       max_tokens: 2000,
-      // Low effort keeps this inside Netlify's 10s function limit; a caption is
-      // a short creative task, not a reasoning one.
+      // A caption is a short creative task, not a reasoning one. This runs in a
+      // background function now, so the setting is about cost and latency
+      // rather than squeezing under a timeout.
       thinking: { type: 'adaptive' },
       output_config: { effort: 'low' },
       betas: ['server-side-fallback-2026-06-01'],
@@ -161,9 +143,8 @@ Reply with the text only. No preamble, no explanation, no quotation marks around
     })
 
     if (response.stop_reason === 'refusal') {
-      return json(422, {
-        ok: false,
-        error: 'The model declined to write copy for this image',
+      throw Object.assign(new Error('The model declined to write copy for this image'), {
+        statusCode: 422,
         category: response.stop_details?.category ?? null,
       })
     }
@@ -174,33 +155,28 @@ Reply with the text only. No preamble, no explanation, no quotation marks around
       .join('')
       .trim()
 
-    if (!caption) return json(502, { ok: false, error: 'The model returned no text' })
+    if (!caption) {
+      throw Object.assign(new Error('The model returned no text'), { statusCode: 502 })
+    }
 
-    return json(200, {
-      ok: true,
+    return {
       caption,
       model: response.model,
-      usage: {
-        input: response.usage.input_tokens,
-        output: response.usage.output_tokens,
-      },
-    })
+      usage: { input: response.usage.input_tokens, output: response.usage.output_tokens },
+    }
   } catch (error) {
-    console.error('Caption generation failed:', error.message)
+    if (error.statusCode) throw error
 
     if (error instanceof Anthropic.AuthenticationError) {
-      return json(401, { ok: false, error: 'ANTHROPIC_API_KEY is not valid' })
+      throw Object.assign(new Error('ANTHROPIC_API_KEY is not valid'), { statusCode: 401 })
     }
     if (error instanceof Anthropic.RateLimitError) {
-      return json(429, { ok: false, error: 'Rate limited — try again in a moment' })
-    }
-    if (error instanceof Anthropic.BadRequestError) {
-      // A 400 here usually means Claude could not fetch the image URL.
-      return json(400, { ok: false, error: error.message })
+      throw Object.assign(new Error('Rate limited — try again in a moment'), { statusCode: 429 })
     }
     if (error instanceof Anthropic.APIError) {
-      return json(error.status || 502, { ok: false, error: error.message })
+      // A 400 here usually means Claude could not fetch the image URL.
+      throw Object.assign(new Error(error.message), { statusCode: error.status || 502 })
     }
-    return json(500, { ok: false, error: error.message })
+    throw error
   }
 }

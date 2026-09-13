@@ -18,8 +18,7 @@ import path from 'node:path'
  */
 
 const STORE_NAME = 'smartcontentai'
-const POSTS_KEY = 'posts'
-const LOCAL_PATH = path.resolve(process.cwd(), '.netlify/local-store/posts.json')
+const LOCAL_DIR = path.resolve(process.cwd(), '.netlify/local-store')
 
 // Decided on first use and remembered: Blobs either works in this environment
 // or it does not, and the answer cannot change mid-process.
@@ -32,35 +31,37 @@ function isMissingBlobsEnv(error) {
   )
 }
 
-async function readLocal() {
+const localPath = (key) => path.join(LOCAL_DIR, `${key}.json`)
+
+async function readLocal(key) {
   try {
-    const raw = await fs.readFile(LOCAL_PATH, 'utf8')
+    const raw = await fs.readFile(localPath(key), 'utf8')
     const parsed = JSON.parse(raw)
-    return { posts: Array.isArray(parsed) ? parsed : [], etag: null }
+    return { items: Array.isArray(parsed) ? parsed : [], etag: null }
   } catch (error) {
-    if (error.code === 'ENOENT') return { posts: [], etag: null }
+    if (error.code === 'ENOENT') return { items: [], etag: null }
     throw error
   }
 }
 
-async function writeLocal(posts) {
-  await fs.mkdir(path.dirname(LOCAL_PATH), { recursive: true })
-  await fs.writeFile(LOCAL_PATH, JSON.stringify(posts, null, 2), 'utf8')
+async function writeLocal(key, value) {
+  await fs.mkdir(LOCAL_DIR, { recursive: true })
+  await fs.writeFile(localPath(key), JSON.stringify(value, null, 2), 'utf8')
 }
 
-/** @returns {Promise<{posts: object[], etag: string|null}>} */
-export async function readPosts() {
-  if (useLocalFile) return readLocal()
+/** @returns {Promise<{items: object[], etag: string|null}>} */
+export async function readDoc(key) {
+  if (useLocalFile) return readLocal(key)
 
   try {
     const store = getStore(STORE_NAME)
-    const result = await store.getWithMetadata(POSTS_KEY, { type: 'json' })
+    const result = await store.getWithMetadata(key, { type: 'json' })
     useLocalFile = false
-    return { posts: result?.data ?? [], etag: result?.etag ?? null }
+    return { items: result?.data ?? [], etag: result?.etag ?? null }
   } catch (error) {
     if (!isMissingBlobsEnv(error)) throw error
     useLocalFile = true
-    return readLocal()
+    return readLocal(key)
   }
 }
 
@@ -71,16 +72,16 @@ export async function readPosts() {
  *
  * @returns true on success, false if the document moved on — re-read and retry.
  */
-export async function writePosts(posts, etag) {
+export async function writeDoc(key, items, etag) {
   if (useLocalFile) {
-    await writeLocal(posts)
+    await writeLocal(key, items)
     return true
   }
 
   const store = getStore(STORE_NAME)
   const result = await store.setJSON(
-    POSTS_KEY,
-    posts,
+    key,
+    items,
     etag ? { onlyIfMatch: etag } : { onlyIfNew: true }
   )
 
@@ -90,18 +91,18 @@ export async function writePosts(posts, etag) {
 }
 
 /** Read, apply `mutate`, write — retrying when a concurrent write wins the race. */
-export async function updatePosts(mutate, { attempts = 4 } = {}) {
+export async function updateDoc(key, mutate, { attempts = 4 } = {}) {
   for (let i = 0; i < attempts; i++) {
-    const { posts, etag } = await readPosts()
-    const next = await mutate(posts)
+    const { items, etag } = await readDoc(key)
+    const next = await mutate(items)
 
     // A mutation may decline to change anything.
-    if (next === null || next === undefined) return posts
+    if (next === null || next === undefined) return items
 
-    if (await writePosts(next, etag)) return next
+    if (await writeDoc(key, next, etag)) return next
   }
 
-  const error = new Error('Could not save: the post list kept changing under us')
+  const error = new Error(`Could not save "${key}": it kept changing under us`)
   error.statusCode = 409
   throw error
 }

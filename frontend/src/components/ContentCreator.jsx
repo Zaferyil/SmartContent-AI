@@ -51,15 +51,19 @@ export default function ContentCreator({ selected, notify }) {
     if (selected.length === 0) return notify(t.create.needPlatform, 'warn')
 
     setBusy(true)
+    setWaiting(false)
     try {
-      setResult(
-        await generateCaption({ imageUrl, language, postType, topic, tone, format })
+      const caption = await generateCaption(
+        { imageUrl, language, postType, topic, tone, format },
+        { onProgress: () => setWaiting(true) }
       )
+      setResult(caption)
       notify(t.create.generated)
     } catch (error) {
       notify(error.message, 'warn')
     } finally {
       setBusy(false)
+      setWaiting(false)
     }
   }
 

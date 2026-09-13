@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { readPosts, updatePosts } from './store.js'
+import { readDoc, updateDoc } from './store.js'
+
+const KEY = 'posts'
 
 /**
  * A published post as this app records it.
@@ -20,7 +22,7 @@ import { readPosts, updatePosts } from './store.js'
  */
 
 export async function listPosts() {
-  const { posts } = await readPosts()
+  const { items: posts } = await readDoc(KEY)
   // Newest first: every screen shows recent work at the top.
   return [...posts].sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))
 }
@@ -29,7 +31,7 @@ export async function listPosts() {
 export async function recordPublished({ mediaId, permalink, imageUrl, caption, postType }) {
   let created = null
 
-  await updatePosts((posts) => {
+  await updateDoc(KEY, (posts) => {
     // The publish flow can report the same media twice (a retried finish call),
     // and a duplicate would double-count in every metric below.
     if (posts.some((p) => p.mediaId === mediaId)) return null
@@ -55,7 +57,7 @@ export async function recordPublished({ mediaId, permalink, imageUrl, caption, p
 export async function saveMetrics(byMediaId) {
   const fetchedAt = new Date().toISOString()
 
-  return updatePosts((posts) =>
+  return updateDoc(KEY, (posts) =>
     posts.map((post) => {
       const metrics = byMediaId[post.mediaId]
       return metrics ? { ...post, metrics: { ...metrics, fetchedAt } } : post
