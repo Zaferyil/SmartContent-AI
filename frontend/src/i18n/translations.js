@@ -289,6 +289,7 @@ export const translations = {
       loading: 'Konten werden geladen …',
 
       connectedTitle: 'Verbundene Konten',
+      storageBroken: 'Speicher nicht erreichbar — nichts kann gespeichert oder gelesen werden.',
       noneConnected: 'Noch kein Konto verbunden.',
       addChannel: 'Kanal hinzufügen',
       addTitle: 'Kanal hinzufügen',
@@ -621,6 +622,7 @@ export const translations = {
       loading: 'Loading accounts …',
 
       connectedTitle: 'Connected accounts',
+      storageBroken: 'Storage unreachable — nothing can be saved or read.',
       noneConnected: 'No account connected yet.',
       addChannel: 'Add channel',
       addTitle: 'Add a channel',

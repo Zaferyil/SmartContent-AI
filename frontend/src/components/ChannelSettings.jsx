@@ -13,7 +13,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext'
 import { LANGUAGES, translations } from '../i18n/translations'
 import { getPlatform } from '../data/platforms'
-import { addAccount, fetchAccounts, removeAccount } from '../utils/schedule'
+import { addAccount, fetchAccounts, fetchStorageStatus, removeAccount } from '../utils/schedule'
 import ScreenHeader from './ScreenHeader'
 
 const fill = (template, vars) =>
@@ -39,17 +39,26 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [storage, setStorage] = useState(null)
 
   const load = useCallback(async () => {
     try {
       const next = await fetchAccounts()
       setAccounts(next)
+      setStorage(null)
       // The other screens hold their own copy; connecting a channel has to show
       // up in the calendar's picker without a reload.
       onAccountsChanged?.()
     } catch (e) {
       notify(e.message, 'warn')
       setAccounts([])
+
+      // Accounts failing to load usually means storage is unreachable, and an
+      // empty list looks identical to "you have not connected anything yet".
+      // Ask what is actually wrong and show it rather than leave a blank page.
+      fetchStorageStatus()
+        .then((status) => setStorage({ ...status, loadError: e.message }))
+        .catch(() => setStorage({ loadError: e.message }))
     }
   }, [notify, onAccountsChanged])
 
@@ -103,6 +112,36 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
   return (
     <div>
       <ScreenHeader title={s.title} subtitle={s.subtitle} />
+
+      {storage && (
+        <div className="mb-5 rounded-2xl border-2 border-rose-200 bg-rose-50 p-4 sm:p-5">
+          <p className="flex items-center gap-2 text-sm font-extrabold text-rose-800">
+            <AlertTriangle size={16} strokeWidth={2.5} />
+            {s.storageBroken}
+          </p>
+          <p className="mt-1 break-words text-[13px] font-semibold text-rose-900/80">
+            {storage.loadError}
+          </p>
+
+          {/* The detail that says which fix applies. Safe to read out: ids and
+              status codes only, never a credential. */}
+          <dl className="mt-3 grid gap-x-4 gap-y-1 border-t border-rose-200 pt-3 text-[12px] sm:grid-cols-2">
+            {[
+              ['Blobs context', storage.blobsContext ? 'present' : 'missing'],
+              ['Site ID', storage.siteId ?? '—'],
+              ['Token length', storage.tokenLength ?? 0],
+              ['Token valid', storage.tokenCheck?.tokenValid ?? '—'],
+              ['Site access', storage.tokenCheck?.siteAccess ?? '—'],
+              ['Can read / write', `${storage.canRead} / ${storage.canWrite}`],
+            ].map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-2">
+                <dt className="font-semibold text-rose-900/60">{label}</dt>
+                <dd className="truncate font-mono font-bold text-rose-900">{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
 
       {/* ---------- Connected accounts ---------- */}
       <h3 className="mb-3 text-sm font-extrabold text-slate-700">{s.connectedTitle}</h3>

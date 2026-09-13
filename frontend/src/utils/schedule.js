@@ -17,6 +17,15 @@ export const saveSettings = (settings) =>
 export const fetchAccounts = () => api('accounts-list').then((data) => data.accounts)
 
 /**
+ * Whether this deploy can store anything, and if not, what is wrong.
+ *
+ * Shown in the app rather than left to a URL only a developer would think to
+ * open: when storage is broken every screen looks merely empty, which is the
+ * hardest failure to recognise.
+ */
+export const fetchStorageStatus = () => api('storage-status')
+
+/**
  * Connects an account from its token alone — the server reads back which
  * account it is and refuses a token it cannot identify.
  */
