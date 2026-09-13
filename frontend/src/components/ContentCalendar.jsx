@@ -445,6 +445,12 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
             onOpen={setDrawerItem}
             onDropPost={reschedule}
             onAdd={openNew}
+            // Phone only: a month cell is too small to hold a post and an add
+            // button, so tapping one goes to that day, where both fit.
+            onPickDay={(day) => {
+              setAnchor(day)
+              setView('day')
+            }}
           />
         )}
         {view === 'list' &&
