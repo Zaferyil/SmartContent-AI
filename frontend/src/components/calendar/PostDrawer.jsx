@@ -248,14 +248,11 @@ export default function PostDrawer({
                         key={account.id}
                         onClick={() => {
                           setPlatform(account.platform)
-                          // Several channels only while creating. An entry that
-                          // already exists is one post on one channel — moving
-                          // it to "both" would have to silently create a second
-                          // post, which is not what picking a chip looks like.
-                          if (!isNew) return setAccountIds([account.id])
                           setAccountIds((current) =>
                             current.includes(account.id)
-                              ? current.length === 1
+                              ? // Never down to nothing — a post with no channel
+                                // cannot go anywhere.
+                                current.length === 1
                                 ? current
                                 : current.filter((x) => x !== account.id)
                               : [...current, account.id]
@@ -269,7 +266,7 @@ export default function PostDrawer({
                             : 'border-slate-200 bg-white/70 text-slate-500'
                         }`}
                       >
-                        {isNew && active ? (
+                        {active ? (
                           <Check size={13} strokeWidth={3} />
                         ) : (
                           p && <span className="text-sm leading-none">{p.icon}</span>
@@ -281,11 +278,13 @@ export default function PostDrawer({
                 </div>
 
                 {/* Saying it in words, because "two chips are highlighted" and
-                    "this will create two separate posts" are not the same
-                    thought, and only the second one is true. */}
-                {isNew && accountIds.length > 1 && (
+                    "this becomes two separate posts" are not the same thought,
+                    and only the second one is true. The two cases differ: a new
+                    entry becomes n posts, while an existing one stays where it
+                    is and the extra channels become new posts beside it. */}
+                {accountIds.length > 1 && (
                   <p className="mt-2 text-xs font-semibold text-brand-700">
-                    {fill(d.multiChannelHint, { n: accountIds.length })}
+                    {isNew ? fill(d.multiChannelHint, { n: accountIds.length }) : d.alsoOnHint}
                   </p>
                 )}
               </>
@@ -471,8 +470,13 @@ export default function PostDrawer({
             </div>
           )}
 
-          {!live && !isNew && canPublish && (
+          {/* Hidden while several channels are picked: this button publishes
+              this one entry, and the extra channels do not exist as posts until
+              they are saved. Offering it here would send one of them and look
+              like it had sent them all. */}
+          {!live && !isNew && canPublish && accountIds.length === 1 && (
             <button onClick={publishNow} disabled={publishing} className="btn-ghost w-full !py-3">
+
               {publishing ? (
                 <Loader2 size={16} className="animate-spin" strokeWidth={2.5} />
               ) : (
