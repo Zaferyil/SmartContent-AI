@@ -73,10 +73,34 @@ export async function api(path, { method, body, query } = {}) {
     throw unauthorized()
   }
 
-  // A background function answers 202 with an empty body.
-  if (response.status === 202 && !response.headers.get('content-length')) return null
+  /*
+   * Two different 202s arrive here and only the body tells them apart: a
+   * background function answers with nothing at all, while instagram-publish
+   * answers 202 with the containerId the caller needs to finish the post.
+   *
+   * This used to ask Content-Length, which on the deployed site is never
+   * present — Netlify serves HTTP/2, where length is framing rather than a
+   * header. So every 202 looked empty, publishing a photo Instagram had not
+   * finished processing returned null, and the caller fell over reading
+   * `.done` off it. Reading the body is the only thing that actually answers
+   * the question.
+   */
+  const text = await response.text()
+  let parsed = null
+  if (text) {
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = null
+    }
+  }
 
-  const data = await response.json().catch(() => ({}))
+  if (response.status === 202 && parsed === null) return null
+
+  // Everywhere else an object, never null: callers read fields straight off
+  // this, and handing them null turns a server hiccup into a TypeError that
+  // says nothing about what went wrong.
+  const data = parsed ?? {}
 
   if (!response.ok && response.status !== 202) {
     // Tagged so callers can tell a message written by our own server — which

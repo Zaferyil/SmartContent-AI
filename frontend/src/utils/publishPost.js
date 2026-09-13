@@ -23,6 +23,11 @@ export async function publishPost({ imageUrl, caption, postType, accountId }, { 
     body: { imageUrl, caption, postType, accountId },
   })
 
+  // This endpoint always answers with a body. Reading `.done` off nothing is
+  // how the last failure surfaced — as "null is not an object", which tells
+  // the user nothing about their post.
+  if (!started) throw new Error('Instagram publishing returned an empty response')
+
   if (started.done) return started.mediaId
 
   const deadline = Date.now() + POLL_TIMEOUT_MS
@@ -45,7 +50,7 @@ export async function publishPost({ imageUrl, caption, postType, accountId }, { 
       },
     })
 
-    if (status.done) return status.mediaId
+    if (status?.done) return status.mediaId
   }
 
   throw new Error('Instagram is still processing the media — try again in a moment')
