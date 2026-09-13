@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertCircle,
@@ -51,6 +51,14 @@ export default function PostDrawer({
   const [time, setTime] = useState('')
   const [replacing, setReplacing] = useState(false)
   const [writing, setWriting] = useState(false)
+  const [writeError, setWriteError] = useState(null)
+  const errorRef = useRef(null)
+
+  // The caption sits far enough down the panel that on a phone the message
+  // lands below the fold — where it is as good as not shown at all.
+  useEffect(() => {
+    if (writeError) errorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [writeError])
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
 
@@ -64,6 +72,7 @@ export default function PostDrawer({
     setDate(toDateInput(when))
     setTime(toTimeInput(when))
     setReplacing(false)
+    setWriteError(null)
   }, [item])
 
   useEffect(() => {
@@ -100,10 +109,16 @@ export default function PostDrawer({
 
   const write = async () => {
     if (!imageUrl) return notify(d.needImage, 'warn')
+
     setWriting(true)
+    setWriteError(null)
     try {
       setCaption(await generateCaption({ imageUrl, language, postType }))
     } catch (error) {
+      // Shown in the panel as well as the toast. This is the one place the user
+      // is actually looking, and a caption that silently fails to appear is
+      // impossible to tell apart from a button that did nothing.
+      setWriteError(error.message)
       notify(error.message, 'warn')
     } finally {
       setWriting(false)
@@ -307,13 +322,13 @@ export default function PostDrawer({
 
           {/* ---------- Caption ---------- */}
           <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <span className="label !mb-0">{d.caption}</span>
               {!live && (
                 <button
                   onClick={write}
                   disabled={writing}
-                  className="flex items-center gap-1 text-xs font-extrabold text-brand-600 transition-colors hover:text-brand-700 disabled:text-slate-300"
+                  className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-extrabold text-brand-600 transition-colors hover:text-brand-700 disabled:text-slate-300"
                 >
                   {writing ? (
                     <Loader2 size={13} className="animate-spin" strokeWidth={2.5} />
@@ -324,14 +339,37 @@ export default function PostDrawer({
                 </button>
               )}
             </div>
-            <textarea
-              rows={7}
-              value={caption}
-              disabled={live}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder={d.captionPlaceholder}
-              className="field resize-y"
-            />
+
+            <div className="relative">
+              <textarea
+                rows={7}
+                value={caption}
+                disabled={live || writing}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder={d.captionPlaceholder}
+                className="field resize-y"
+              />
+              {/* Writing takes the better part of half a minute. Without a
+                  visible sign of work the button looks dead. */}
+              {writing && (
+                <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-2xl bg-white/70">
+                  <span className="flex items-center gap-2 text-sm font-bold text-brand-700">
+                    <Loader2 size={17} className="animate-spin" strokeWidth={2.5} />
+                    {d.writing}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {writeError && (
+              <p
+                ref={errorRef}
+                className="mt-2 flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800"
+              >
+                <AlertCircle size={14} strokeWidth={2.5} className="mt-px shrink-0" />
+                <span className="break-words">{writeError}</span>
+              </p>
+            )}
           </div>
 
           {/* ---------- Hashtags ---------- */}

@@ -4,6 +4,11 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react'
 /**
  * Floating status message. Sits above the mobile tab bar so it never covers it.
  * `toast.key` changes on every notify() call, which restarts the dismiss timer.
+ *
+ * Its z-index has to clear the overlays (drawer and modal at 60), not just the
+ * page: a drawer covers the whole screen on a phone, so a toast underneath it
+ * is a message nobody can read — and a failure reported that way is
+ * indistinguishable from nothing having happened at all.
  */
 export default function Toast({ toast, onDismiss }) {
   useEffect(() => {
@@ -21,7 +26,7 @@ export default function Toast({ toast, onDismiss }) {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 lg:bottom-8"
+      className="pointer-events-none fixed inset-x-0 bottom-24 z-[80] flex justify-center px-4 lg:bottom-8"
     >
       <div
         key={toast.key}
