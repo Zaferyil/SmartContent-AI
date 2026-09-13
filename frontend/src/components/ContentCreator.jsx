@@ -77,6 +77,13 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
 
   const targets = accounts.filter((a) => accountIds.includes(a.id))
 
+  // Instagram drops the caption on a story, so writing one is work that gets
+  // thrown away. The screen was still built around it: publishing only appeared
+  // once copy existed, which left a story with an uploaded image and no way to
+  // send it.
+  const isStory = postType === 'STORY'
+  const canPublish = Boolean(imageUrl) && (isStory || Boolean(result))
+
   const run = async () => {
     // The copy is written from the image, so there is nothing to write without one.
     if (!imageUrl) return notify(t.create.media.needImage, 'warn')
@@ -109,7 +116,9 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
     try {
       const done = await fanOut(targets, (account) =>
         publishPost(
-          { imageUrl, caption: result, postType, accountId: account.id },
+          // Nothing for a story: Instagram ignores the field, and sending copy
+          // it will not show would only make the record claim otherwise.
+          { imageUrl, caption: isStory ? '' : result, postType, accountId: account.id },
           { onProgress: () => setWaiting(true) }
         )
       )
@@ -307,7 +316,12 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             )}
           </div>
 
-          <button onClick={run} disabled={busy} className="btn-primary w-full">
+          <button
+            onClick={run}
+            disabled={busy || isStory}
+            title={isStory ? t.create.storyNoCaption : undefined}
+            className="btn-primary w-full"
+          >
             {busy ? (
               <>
                 <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
@@ -361,7 +375,10 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
                 >
                   <Wand2 size={24} strokeWidth={2.5} />
                 </span>
-                <p className="max-w-xs text-sm text-slate-400">{t.create.emptyResult}</p>
+                {/* The usual prompt points at a button a story has disabled. */}
+                <p className="max-w-xs text-sm text-slate-400">
+                  {isStory ? t.create.storyNothingToWrite : t.create.emptyResult}
+                </p>
               </div>
             )}
           </div>
@@ -389,11 +406,10 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             </div>
           )}
 
-          {result && (
+          {canPublish && (
             <button
               onClick={publish}
-              disabled={publishing || !imageUrl}
-              title={!imageUrl ? t.create.media.needImage : undefined}
+              disabled={publishing}
               className="btn-primary mt-2 w-full"
             >
               {publishing ? (

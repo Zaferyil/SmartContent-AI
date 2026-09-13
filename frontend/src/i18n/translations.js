@@ -63,6 +63,8 @@ export const translations = {
       },
       reelsUnavailable: 'Video-Unterstützung für Reels ist noch nicht fertig.',
       storyNoCaption: 'In Storys erscheint kein Text — Instagram nimmt keine Bildunterschrift an.',
+      storyNothingToWrite:
+        'Für Storys wird kein Text gebraucht. Lade ein Bild hoch und veröffentliche es direkt.',
       media: {
         label: 'Bild',
         pick: 'Bild auswählen oder hierher ziehen',
@@ -410,6 +412,8 @@ export const translations = {
       },
       reelsUnavailable: 'Video support for Reels is not ready yet.',
       storyNoCaption: 'Stories show no text — Instagram does not accept a caption.',
+      storyNothingToWrite:
+        'Stories need no copy. Upload an image and publish it straight away.',
       media: {
         label: 'Image',
         pick: 'Choose an image or drop it here',
