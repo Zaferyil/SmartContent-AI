@@ -5,6 +5,7 @@
   "description": "Multi-platform social media content management with AI",
   "type": "module",
   "scripts": {
+    "update": "git checkout -- package-lock.json frontend/package-lock.json 2>/dev/null || true && git pull origin main && npm install && npm install --prefix frontend",
     "dev": "concurrently -n functions,app -c magenta,cyan \"npm:dev:functions\" \"npm:dev:app\"",
     "dev:functions": "netlify functions:serve --port 9999",
     "dev:app": "npm run dev --prefix frontend",
