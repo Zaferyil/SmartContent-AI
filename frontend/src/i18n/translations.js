@@ -304,7 +304,9 @@ export const translations = {
 
       tokenOk: 'Token gültig',
       tokenValidFor: 'Token noch {days} Tage gültig',
+      tokenValidForEst: 'Token noch ca. {days} Tage gültig (geschätzt)',
       expiresIn: 'Token läuft in {days} Tagen ab',
+      expiresInEst: 'Token läuft in ca. {days} Tagen ab (geschätzt)',
       autoRefresh: 'Wird automatisch verlängert',
       lastRefreshed: 'Zuletzt verlängert am {date}',
 
@@ -634,7 +636,9 @@ export const translations = {
 
       tokenOk: 'Token valid',
       tokenValidFor: 'Token valid for another {days} days',
+      tokenValidForEst: 'Token valid for roughly {days} more days (estimated)',
       expiresIn: 'Token expires in {days} days',
+      expiresInEst: 'Token expires in roughly {days} days (estimated)',
       autoRefresh: 'Renewed automatically',
       lastRefreshed: 'Last renewed on {date}',
 

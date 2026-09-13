@@ -149,14 +149,20 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
                   ) : account.expiringSoon ? (
                     <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
                       <AlertTriangle size={13} strokeWidth={2.5} />
-                      {fill(s.expiresIn, { days: account.daysLeft })}
+                      {fill(
+                        account.expiryEstimated ? s.expiresInEst : s.expiresIn,
+                        { days: account.daysLeft }
+                      )}
                     </p>
                   ) : (
                     <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                       <CheckCircle2 size={13} strokeWidth={2.5} />
                       {account.daysLeft === null
                         ? s.tokenOk
-                        : fill(s.tokenValidFor, { days: account.daysLeft })}
+                        : fill(
+                            account.expiryEstimated ? s.tokenValidForEst : s.tokenValidFor,
+                            { days: account.daysLeft }
+                          )}
                     </p>
                   )}
 
