@@ -1,81 +1,122 @@
-import React, { useMemo, useState } from 'react'
-import { TrendingUp, TrendingDown, ArrowRight, BarChart3 } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowRight,
+  BarChart3,
+  Clock,
+  Eye,
+  Heart,
+  Hourglass,
+  Loader2,
+  MessageCircle,
+  RefreshCw,
+  Sparkles,
+  Users,
+} from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
-import { DEMO_METRICS, getPlatform } from '../data/platforms'
+import { fetchPosts, refreshMetrics } from '../utils/posts'
+import {
+  bandLabel,
+  buildBands,
+  interactionsOf,
+  isMeasured,
+  recommendBand,
+  summarise,
+} from '../utils/postAnalytics'
 import ScreenHeader from './ScreenHeader'
 
-const RANGES = [
-  { id: 7, key: 'range7', factor: 0.24 },
-  { id: 30, key: 'range30', factor: 1 },
-  { id: 90, key: 'range90', factor: 2.7 },
-]
-
-// Single sequential hue for the comparison bars — identity is carried by the
-// row label and icon, never by colour. Validated ≥3:1 on the card surface.
+// One sequential hue for every bar. Which band a row is stays in its label, so
+// the chart still reads correctly in greyscale. Validated ≥3:1 on the card.
 const BAR = '#4f46e5'
 const BAR_SOFT = '#e0e7ff'
 
-const METRICS = ['views', 'likes', 'comments', 'followers']
+const fill = (template, vars) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
 
-export default function Analytics({ selected, onGoToPlatforms }) {
+export default function Analytics({ notify, onGoToCreate }) {
   const { t, language } = useLanguage()
-  const [range, setRange] = useState(30)
-  const [metric, setMetric] = useState('views')
+  const [posts, setPosts] = useState(null)
+  const [error, setError] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const factor = RANGES.find((r) => r.id === range)?.factor ?? 1
-  const nf = useMemo(() => new Intl.NumberFormat(language), [language])
+  const load = useCallback(async () => {
+    try {
+      setPosts(await fetchPosts())
+      setError(null)
+    } catch (e) {
+      setError(e.message)
+      setPosts([])
+    }
+  }, [])
 
-  const compact = (n) => {
-    if (n >= 1000) return `${nf.format(Math.round(n / 100) / 10)}K`
-    return nf.format(Math.round(n))
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      await refreshMetrics()
+      await load()
+      notify?.(t.analytics.refreshed)
+    } catch (e) {
+      notify?.(e.message, 'warn')
+    } finally {
+      setRefreshing(false)
+    }
   }
 
-  const rows = useMemo(
+  const nf = useMemo(() => new Intl.NumberFormat(language), [language])
+  // German writes 15,5 % — toFixed would print an English 15.5 either way.
+  const pf = useMemo(
     () =>
-      selected
-        .map((id) => {
-          const p = getPlatform(id)
-          const raw = DEMO_METRICS[id]
-          if (!p || !raw) return null
-          return {
-            id,
-            name: p.name,
-            icon: p.icon,
-            views: raw.views * factor,
-            likes: raw.likes * factor,
-            comments: raw.comments * factor,
-            followers: raw.followers,
-            engagement: raw.engagement,
-            trend: raw.trend,
-          }
-        })
-        .filter(Boolean)
-        .sort((a, b) => b[metric] - a[metric]),
-    [selected, factor, metric]
+      new Intl.NumberFormat(language, {
+        style: 'percent',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
+    [language]
+  )
+  const dtf = useMemo(
+    () =>
+      new Intl.DateTimeFormat(language, {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    [language]
   )
 
-  const totals = useMemo(() => {
-    if (rows.length === 0) return null
-    return {
-      views: rows.reduce((s, r) => s + r.views, 0),
-      likes: rows.reduce((s, r) => s + r.likes, 0),
-      comments: rows.reduce((s, r) => s + r.comments, 0),
-      followers: rows.reduce((s, r) => s + r.followers, 0),
-      engagement: rows.reduce((s, r) => s + r.engagement, 0) / rows.length,
-      trend: rows.reduce((s, r) => s + r.trend, 0) / rows.length,
-    }
-  }, [rows])
+  const stats = useMemo(() => (posts ? summarise(posts) : null), [posts])
+  const bands = useMemo(() => (posts ? buildBands(posts) : []), [posts])
+  const advice = useMemo(
+    () => (stats ? recommendBand(bands, stats.measured) : null),
+    [bands, stats]
+  )
 
-  if (rows.length === 0) {
+  if (posts === null) {
     return (
       <div>
         <ScreenHeader title={t.analytics.title} subtitle={t.analytics.subtitle} />
-        <div className="card flex flex-col items-center justify-center gap-4 p-10 text-center">
+        <div className="card flex items-center justify-center gap-3 p-10 text-slate-400">
+          <Loader2 size={20} className="animate-spin" strokeWidth={2.5} />
+          <span className="font-semibold">{t.analytics.loading}</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div>
+        <ScreenHeader title={t.analytics.title} subtitle={t.analytics.subtitle} />
+        <div className="card flex flex-col items-center justify-center gap-3 p-10 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-300">
             <BarChart3 size={26} strokeWidth={2} />
           </span>
-          <p className="font-bold text-slate-500">{t.analytics.empty}</p>
-          <button onClick={onGoToPlatforms} className="btn-primary">
+          <p className="font-bold text-slate-600">{error ?? t.analytics.empty}</p>
+          {!error && <p className="max-w-xs text-sm text-slate-400">{t.analytics.emptyHint}</p>}
+          <button onClick={onGoToCreate} className="btn-primary mt-1">
             {t.analytics.emptyAction}
             <ArrowRight size={17} strokeWidth={2.5} />
           </button>
@@ -84,103 +125,127 @@ export default function Analytics({ selected, onGoToPlatforms }) {
     )
   }
 
-  const max = Math.max(...rows.map((r) => r[metric]))
-
   const tiles = [
-    { key: 'views', value: compact(totals.views) },
-    { key: 'likes', value: compact(totals.likes) },
-    { key: 'comments', value: compact(totals.comments) },
-    { key: 'followers', value: compact(totals.followers) },
-    { key: 'engagement', value: `${totals.engagement.toFixed(1)}%` },
+    { key: 'published', icon: Sparkles, value: nf.format(stats.published) },
+    { key: 'reach', icon: Users, value: nf.format(stats.reach) },
+    { key: 'views', icon: Eye, value: nf.format(stats.views) },
+    { key: 'likes', icon: Heart, value: nf.format(stats.likes) },
+    { key: 'comments', icon: MessageCircle, value: nf.format(stats.comments) },
+    {
+      key: 'engagement',
+      icon: BarChart3,
+      value: stats.engagement === null ? '—' : pf.format(stats.engagement / 100),
+    },
   ]
+
+  const maxBand = Math.max(...bands.map((b) => b.avgReach), 0)
 
   return (
     <div>
       <ScreenHeader title={t.analytics.title} subtitle={t.analytics.subtitle} />
 
-      {/* Filter row — sits above the data, per interaction rules */}
-      <div className="mb-5 flex flex-wrap gap-1.5">
-        {RANGES.map((r) => {
-          const active = range === r.id
-          return (
-            <button
-              key={r.id}
-              onClick={() => setRange(r.id)}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-                active
-                  ? 'text-white shadow-md shadow-brand-500/25'
-                  : 'bg-white/70 text-slate-600 hover:bg-white'
-              }`}
-              style={active ? { backgroundImage: 'var(--grad-brand)' } : undefined}
-            >
-              {t.analytics[r.key]}
-            </button>
-          )
-        })}
+      <div className="mb-5">
+        <button onClick={refresh} disabled={refreshing} className="btn-ghost">
+          <RefreshCw size={16} strokeWidth={2.5} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? t.analytics.refreshing : t.analytics.refresh}
+        </button>
       </div>
 
-      {/* ---------- KPI row: stat tiles, no plot ---------- */}
+      {/* ---------- KPI tiles ---------- */}
       <h3 className="mb-3 text-sm font-extrabold text-slate-700">{t.analytics.totals}</h3>
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {tiles.map(({ key, value }) => (
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {tiles.map(({ key, icon: Icon, value }) => (
           <div key={key} className="card p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+              <Icon size={13} strokeWidth={2.5} />
               {t.analytics[key]}
             </p>
-            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
-              {value}
-            </p>
+            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-ink">{value}</p>
           </div>
         ))}
       </div>
 
-      {/* ---------- Comparison bars: one hue, magnitude by length ---------- */}
-      <div className="card mb-6 p-5 sm:p-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-extrabold text-slate-700">{t.analytics.byPlatform}</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {METRICS.map((m) => {
-              const active = metric === m
-              return (
-                <button
-                  key={m}
-                  onClick={() => setMetric(m)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                    active ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                  }`}
-                >
-                  {t.analytics[m]}
-                </button>
-              )
-            })}
-          </div>
+      {/* ---------- Best time ---------- */}
+      <div className="card mb-8 p-5 sm:p-6">
+        <div className="mb-1 flex items-center gap-2">
+          <Clock size={17} strokeWidth={2.5} className="text-brand-600" />
+          <h3 className="text-sm font-extrabold text-slate-700">{t.analytics.bestTime}</h3>
         </div>
+        <p className="mb-5 text-xs font-semibold text-slate-400">{t.analytics.bestTimeHint}</p>
 
-        <ul className="space-y-3.5">
-          {rows.map((row) => {
-            const pct = max > 0 ? (row[metric] / max) * 100 : 0
+        {advice.ready ? (
+          <div className="rounded-2xl border-2 border-brand-200 bg-brand-50 p-4">
+            <p className="text-lg font-extrabold text-brand-700">
+              {fill(t.analytics.recommend, { band: bandLabel(advice.band) })}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-brand-900/70">
+              {fill(t.analytics.recommendDetail, {
+                reach: nf.format(Math.round(advice.band.avgReach)),
+                count: advice.band.posts,
+                runnerBand: bandLabel(advice.runnerUp),
+                runnerReach: nf.format(Math.round(advice.runnerUp.avgReach)),
+              })}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/60 p-4">
+            <p className="flex items-center gap-2 text-base font-extrabold text-amber-800">
+              <Hourglass size={17} strokeWidth={2.5} />
+              {advice.reason === 'volume'
+                ? fill(t.analytics.needMore, { n: advice.missing })
+                : t.analytics.needSpread}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-amber-900/70">
+              {advice.reason === 'volume' ? t.analytics.needMoreHint : t.analytics.needSpreadHint}
+            </p>
+          </div>
+        )}
+
+        {/* The measured table is shown regardless — it is fact, not advice. */}
+        <h4 className="mb-3 mt-6 text-xs font-extrabold uppercase tracking-wide text-slate-400">
+          {t.analytics.byHour}
+        </h4>
+        <ul className="space-y-3">
+          {bands.map((band) => {
+            const pct = maxBand > 0 ? (band.avgReach / maxBand) * 100 : 0
             return (
-              <li key={row.id} className="group">
-                <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="text-base leading-none">{row.icon}</span>
-                    <span className="truncate text-sm font-bold text-slate-700">{row.name}</span>
+              <li key={band.index}>
+                <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-bold tabular-nums text-slate-700">
+                    {bandLabel(band)}
                   </span>
-                  {/* Direct label on every bar — values readable without colour */}
-                  <span className="shrink-0 text-sm font-extrabold tabular-nums text-ink">
-                    {compact(row[metric])}
+                  <span className="shrink-0 text-xs font-semibold text-slate-400">
+                    {band.posts === 0 ? (
+                      t.analytics.noData
+                    ) : (
+                      <>
+                        <span className="text-sm font-extrabold tabular-nums text-ink">
+                          {nf.format(Math.round(band.avgReach))}
+                        </span>{' '}
+                        {t.analytics.reach} ·{' '}
+                        {fill(band.posts === 1 ? t.analytics.postsOne : t.analytics.postsMany, {
+                          n: band.posts,
+                        })}
+                      </>
+                    )}
                   </span>
                 </div>
-
                 <div
                   className="h-2.5 w-full overflow-hidden rounded-full"
                   style={{ backgroundColor: BAR_SOFT }}
                   role="img"
-                  aria-label={`${row.name}: ${compact(row[metric])}`}
+                  aria-label={`${bandLabel(band)}: ${nf.format(Math.round(band.avgReach))} ${
+                    t.analytics.reach
+                  } ${t.analytics.perPost}`}
                 >
                   <div
                     className="h-full rounded-full transition-[width] duration-500 ease-out"
-                    style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: BAR }}
+                    style={{
+                      // A band that was posted in but reached nobody gets no
+                      // bar at all — a minimum-width sliver would read as "some".
+                      width: `${band.avgReach === 0 ? 0 : Math.max(pct, 2)}%`,
+                      backgroundColor: BAR,
+                    }}
                   />
                 </div>
               </li>
@@ -189,63 +254,71 @@ export default function Analytics({ selected, onGoToPlatforms }) {
         </ul>
       </div>
 
-      {/* ---------- Per-channel detail ---------- */}
-      <h3 className="mb-3 text-sm font-extrabold text-slate-700">{t.analytics.topContent}</h3>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map((row) => {
-          const up = row.trend >= 0
-          const Trend = up ? TrendingUp : TrendingDown
+      {/* ---------- History ---------- */}
+      <h3 className="mb-3 text-sm font-extrabold text-slate-700">{t.analytics.history}</h3>
+      <ul className="space-y-3">
+        {posts.map((post) => {
+          const m = post.metrics
           return (
-            <div key={row.id} className="card p-5">
-              <div className="mb-4 flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
-                  <span className="text-xl leading-none">{row.icon}</span>
-                  <span className="font-extrabold">{row.name}</span>
+            <li key={post.id} className="card flex gap-3 p-3 sm:gap-4 sm:p-4">
+              {post.imageUrl ? (
+                <img
+                  src={post.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  className="h-20 w-20 shrink-0 rounded-xl object-cover sm:h-24 sm:w-24"
+                />
+              ) : (
+                <span className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-300 sm:h-24 sm:w-24">
+                  <BarChart3 size={20} strokeWidth={2} />
                 </span>
-                {/* Status cue pairs icon + signed label — never colour alone */}
-                <span
-                  className={`chip ${up ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}
-                >
-                  <Trend size={13} strokeWidth={3} />
-                  {up ? '+' : ''}
-                  {row.trend.toFixed(1)}%
-                </span>
+              )}
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-sm font-extrabold tabular-nums text-slate-700">
+                    {dtf.format(new Date(post.publishedAt))}
+                  </span>
+                  <span className="chip bg-slate-100 text-slate-500">
+                    {t.create.postTypes[post.postType] ?? post.postType}
+                  </span>
+                </div>
+
+                <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-slate-500">
+                  {post.caption || '—'}
+                </p>
+
+                {isMeasured(post) ? (
+                  <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    {[
+                      { icon: Users, label: t.analytics.reach, value: m.reach ?? 0 },
+                      { icon: Heart, label: t.analytics.likes, value: m.likes ?? 0 },
+                      { icon: MessageCircle, label: t.analytics.comments, value: m.comments ?? 0 },
+                      { icon: Sparkles, label: t.analytics.interactions, value: interactionsOf(m) },
+                    ].map(({ icon: Icon, label, value }) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <Icon size={13} strokeWidth={2.5} className="text-slate-400" />
+                        <dt className="sr-only">{label}</dt>
+                        <dd className="text-sm font-extrabold tabular-nums text-ink">
+                          {nf.format(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-amber-700"
+                    title={t.analytics.pendingHint}
+                  >
+                    <Hourglass size={13} strokeWidth={2.5} />
+                    {t.analytics.pending}
+                  </p>
+                )}
               </div>
-
-              <dl className="grid grid-cols-2 gap-y-3">
-                <div>
-                  <dt className="text-[11px] font-bold uppercase text-slate-400">
-                    {t.analytics.views}
-                  </dt>
-                  <dd className="text-lg font-extrabold tabular-nums">{compact(row.views)}</dd>
-                </div>
-                <div>
-                  <dt className="text-[11px] font-bold uppercase text-slate-400">
-                    {t.analytics.likes}
-                  </dt>
-                  <dd className="text-lg font-extrabold tabular-nums">{compact(row.likes)}</dd>
-                </div>
-                <div>
-                  <dt className="text-[11px] font-bold uppercase text-slate-400">
-                    {t.analytics.comments}
-                  </dt>
-                  <dd className="text-lg font-extrabold tabular-nums">{compact(row.comments)}</dd>
-                </div>
-                <div>
-                  <dt className="text-[11px] font-bold uppercase text-slate-400">
-                    {t.analytics.engagement}
-                  </dt>
-                  <dd className="text-lg font-extrabold tabular-nums">{row.engagement.toFixed(1)}%</dd>
-                </div>
-              </dl>
-
-              <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] font-semibold text-slate-400">
-                {t.analytics.vsPrevious}
-              </p>
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </div>
   )
 }

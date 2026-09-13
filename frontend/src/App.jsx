@@ -54,7 +54,7 @@ function Shell() {
     platforms: <PlatformSelector selected={selectedPlatforms} onChange={setSelectedPlatforms} />,
     create: <ContentCreator selected={selectedPlatforms} notify={notify} />,
     schedule: <ScheduleManager selected={selectedPlatforms} notify={notify} onGoToPlatforms={() => setActiveTab('platforms')} />,
-    analytics: <Analytics selected={selectedPlatforms} onGoToPlatforms={() => setActiveTab('platforms')} />,
+    analytics: <Analytics notify={notify} onGoToCreate={() => setActiveTab('create')} />,
     settings: <ChannelSettings selected={selectedPlatforms} notify={notify} onGoToPlatforms={() => setActiveTab('platforms')} />,
   }
 
