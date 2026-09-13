@@ -58,6 +58,7 @@ export default function ImagePicker({ onUploaded, notify }) {
         error.code === 'storage-blocked'
           ? m.uploadBlocked
               .replace('{origin}', error.origin)
+              .replace('{host}', error.host ?? '?')
               .replace('{reason}', error.cause?.message ?? '')
           : error.message === 'not-an-image'
             ? m.notAnImage

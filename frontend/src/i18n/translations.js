@@ -79,7 +79,7 @@ export const translations = {
         uploadFailed: 'Bild konnte nicht hochgeladen werden.',
         uploadFailedShort: 'Nicht hochgeladen',
         uploadBlocked:
-          'Der Browser konnte den Upload zum Bildspeicher nicht senden. Häufigste Ursache: {origin} fehlt in den CORS-Einstellungen des R2-Buckets. ({reason})',
+          'Der Browser konnte den Upload nicht an {host} senden. Mögliche Ursachen: {origin} fehlt in den CORS-Einstellungen des Buckets, die R2-Konto-ID ist falsch, oder eine Browser-Erweiterung blockiert die Anfrage. ({reason})',
         publishFailed: 'Veröffentlichung fehlgeschlagen.',
       },
       formats: {
@@ -415,7 +415,7 @@ export const translations = {
         uploadFailed: 'Could not upload the image.',
         uploadFailedShort: 'Not uploaded',
         uploadBlocked:
-          'The browser could not send the upload to the image storage. Most often this means {origin} is missing from the R2 bucket’s CORS settings. ({reason})',
+          'The browser could not send the upload to {host}. Possible causes: {origin} is missing from the bucket’s CORS settings, the R2 account id is wrong, or a browser extension is blocking the request. ({reason})',
         publishFailed: 'Publishing failed.',
       },
       formats: {

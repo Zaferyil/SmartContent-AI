@@ -91,15 +91,25 @@ export async function uploadToStorage(blob) {
       body: blob,
     })
   } catch (error) {
-    // The browser reports a blocked cross-origin request and a dead network the
-    // same way: a bare TypeError with nothing in it. CORS is much the commoner
-    // cause — it is what happens the first time a site moves off localhost —
-    // but it cannot be read off the failure, so this says which is likely
-    // rather than asserting one, and carries the browser's own words along.
-    throw Object.assign(
-      new Error(`storage-blocked:${window.location.origin}:${error.message}`),
-      { code: 'storage-blocked', origin: window.location.origin, cause: error }
-    )
+    // The browser reports a blocked cross-origin request and a host that does
+    // not exist the same way: a bare TypeError with nothing in it. The one
+    // thing that separates them is where the upload was being sent — a wrong
+    // or truncated R2 account id produces an address that resolves to nothing,
+    // which looks exactly like a CORS rejection from the outside. So the
+    // message carries the host, which makes that visible at a glance.
+    let host = 'unknown'
+    try {
+      host = new URL(presign.uploadUrl).host
+    } catch {
+      /* keep 'unknown' */
+    }
+
+    throw Object.assign(new Error(`storage-blocked:${host}:${error.message}`), {
+      code: 'storage-blocked',
+      origin: window.location.origin,
+      host,
+      cause: error,
+    })
   }
 
   if (!putResponse.ok) {
