@@ -83,11 +83,24 @@ export async function uploadToStorage(blob) {
   // password to a third party and break the signature.
   const presign = await api('upload-url', { body: { size: blob.size } })
 
-  const putResponse = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    headers: presign.headers,
-    body: blob,
-  })
+  let putResponse
+  try {
+    putResponse = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      headers: presign.headers,
+      body: blob,
+    })
+  } catch (error) {
+    // A PUT straight to the bucket that fails at the network layer is almost
+    // always the browser refusing it: the bucket's CORS rules do not list this
+    // site. That reads as a generic "upload failed", which sends people looking
+    // at the image, the key, or their connection instead of at the one setting
+    // that is wrong — and it appears the moment a site moves to a new address.
+    throw Object.assign(
+      new Error(`storage-cors:${window.location.origin}`),
+      { code: 'storage-cors', cause: error }
+    )
+  }
 
   if (!putResponse.ok) {
     throw new Error(`Upload rejected by storage (HTTP ${putResponse.status})`)

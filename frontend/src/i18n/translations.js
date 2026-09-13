@@ -77,6 +77,9 @@ export const translations = {
         tooTall: 'Bild zu hoch — Instagram erlaubt höchstens 4:5.',
         tooWide: 'Bild zu breit — Instagram erlaubt höchstens 1,91:1.',
         uploadFailed: 'Bild konnte nicht hochgeladen werden.',
+        uploadFailedShort: 'Nicht hochgeladen',
+        corsBlocked:
+          'Der Bildspeicher (Cloudflare R2) lehnt Uploads von {origin} ab. Trage diese Adresse in die CORS-Einstellungen des Buckets ein.',
         publishFailed: 'Veröffentlichung fehlgeschlagen.',
       },
       formats: {
@@ -410,6 +413,9 @@ export const translations = {
         tooTall: 'Image is too tall — Instagram allows 4:5 at most.',
         tooWide: 'Image is too wide — Instagram allows 1.91:1 at most.',
         uploadFailed: 'Could not upload the image.',
+        uploadFailedShort: 'Not uploaded',
+        corsBlocked:
+          'The image storage (Cloudflare R2) refuses uploads from {origin}. Add this address to the bucket’s CORS settings.',
         publishFailed: 'Publishing failed.',
       },
       formats: {

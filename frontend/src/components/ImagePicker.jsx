@@ -48,9 +48,21 @@ export default function ImagePicker({ onUploaded, notify }) {
       onUploaded(publicUrl)
       setState('done')
     } catch (error) {
-      setState('idle')
+      // 'failed', not 'idle': the preview is already on screen, and the idle
+      // branch renders it with a green tick reading "uploaded" — announcing
+      // success for a file that never arrived.
+      setState('failed')
       onUploaded(null)
-      notify(error.message === 'not-an-image' ? m.notAnImage : m.uploadFailed, 'warn')
+
+      const message =
+        error.code === 'storage-cors'
+          ? m.corsBlocked.replace('{origin}', window.location.origin)
+          : error.message === 'not-an-image'
+            ? m.notAnImage
+            : m.uploadFailed
+
+      setWarning(message)
+      notify(message, 'warn')
     }
   }
 
@@ -92,6 +104,11 @@ export default function ImagePicker({ onUploaded, notify }) {
                   <Loader2 size={14} className="animate-spin text-slate-400" />
                   <span className="text-slate-500">{m.uploading}</span>
                 </>
+              ) : state === 'failed' ? (
+                <>
+                  <AlertTriangle size={14} className="text-rose-600" strokeWidth={2.5} />
+                  <span className="text-rose-700">{m.uploadFailedShort}</span>
+                </>
               ) : (
                 <>
                   <CheckCircle2 size={14} className="text-emerald-600" strokeWidth={2.5} />
@@ -114,7 +131,13 @@ export default function ImagePicker({ onUploaded, notify }) {
           </div>
 
           {warning && (
-            <p className="flex items-start gap-1.5 border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            <p
+              className={`flex items-start gap-1.5 border-t px-3 py-2 text-xs font-semibold ${
+                state === 'failed'
+                  ? 'border-rose-200 bg-rose-50 text-rose-900'
+                  : 'border-amber-200 bg-amber-50 text-amber-900'
+              }`}
+            >
               <AlertTriangle size={14} strokeWidth={2.5} className="mt-px shrink-0" />
               {warning}
             </p>
