@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Layers, Sparkles, CalendarClock, BarChart3, Settings2 } from 'lucide-react'
+import { Layers, Sparkles, CalendarClock, MessageCircle, BarChart3, Settings2 } from 'lucide-react'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import LanguagePicker from './components/LanguagePicker'
 import Toast from './components/Toast'
 import PlatformSelector from './components/PlatformSelector'
 import ContentCreator from './components/ContentCreator'
 import ContentCalendar from './components/ContentCalendar'
+import Inbox from './components/Inbox'
 import Analytics from './components/Analytics'
 import ChannelSettings from './components/ChannelSettings'
 import PasswordGate from './components/PasswordGate'
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'platforms', icon: Layers },
   { id: 'create', icon: Sparkles },
   { id: 'schedule', icon: CalendarClock },
+  { id: 'inbox', icon: MessageCircle },
   { id: 'analytics', icon: BarChart3 },
   { id: 'settings', icon: Settings2 },
 ]
@@ -97,6 +99,7 @@ function Shell() {
         onGoToSettings={() => setActiveTab('settings')}
       />
     ),
+    inbox: <Inbox accounts={accounts} notify={notify} />,
     analytics: <Analytics accounts={accounts} notify={notify} onGoToCreate={() => setActiveTab('create')} />,
     settings: <ChannelSettings notify={notify} onAccountsChanged={loadAccounts} />,
   }
@@ -158,7 +161,9 @@ function Shell() {
 
       {/* ---------- Mobile bottom nav ---------- */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/60 bg-white/85 pb-safe backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 pt-2">
+        {/* Six columns on a phone leaves about 60px each, so the labels are
+            what gives first — they are shrunk rather than the targets. */}
+        <div className="mx-auto grid max-w-md grid-cols-6 gap-0.5 px-1.5 pt-2">
           {TABS.map(({ id, icon: Icon }) => {
             const active = activeTab === id
             return (
@@ -177,7 +182,7 @@ function Shell() {
                   <Icon size={19} strokeWidth={2.5} />
                 </span>
                 <span
-                  className={`text-[10px] font-bold leading-none ${
+                  className={`w-full truncate px-0.5 text-center text-[9px] font-bold leading-none ${
                     active ? 'text-brand-600' : 'text-slate-400'
                   }`}
                 >
