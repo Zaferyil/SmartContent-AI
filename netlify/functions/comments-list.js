@@ -32,10 +32,11 @@ export const handler = async (event) => {
       chosen.map(async (account) => {
         try {
           const { token } = await resolveAccount(account.id, account.platform)
-          return { account, comments: await listForAccount(account, token), error: null }
+          const found = await listForAccount(account, token)
+          return { account, ...found, error: null }
         } catch (error) {
           console.error(`Comments for ${account.username} failed:`, error.message)
-          return { account, comments: [], error: error.message }
+          return { account, comments: [], posts: 0, checked: 0, failures: [], error: error.message }
         }
       })
     )
@@ -48,6 +49,12 @@ export const handler = async (event) => {
         username: r.account.username,
         count: r.comments.length,
         unanswered: r.comments.filter((c) => !c.answered).length,
+        posts: r.posts,
+        checked: r.checked,
+        // The first one is enough to act on, and they are almost always the
+        // same message repeated once per post.
+        readError: r.failures[0] ?? null,
+        allFailed: r.checked > 0 && r.failures.length === r.checked,
         error: r.error,
       })),
     })

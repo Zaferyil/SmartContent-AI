@@ -37,6 +37,10 @@ export const translations = {
       openPost: 'Beitrag ansehen',
       empty: 'Keine Kommentare auf deinen letzten Beiträgen.',
       channelFailed: '@{username} konnte nicht geladen werden:',
+      channelBlocked:
+        'Bei @{username} wurden {n} Beiträge gefunden, aber Instagram hat die Kommentare zu jedem einzelnen abgelehnt. Meist fehlt dem Token die Berechtigung „instagram_business_manage_comments“ — dann hilft ein neu erzeugtes Token. Instagram sagt:',
+      channelNoPosts: 'Bei @{username} wurden gar keine Beiträge gefunden.',
+      checkedLine: '@{username}: {n} Beiträge geprüft',
       scopeNote: 'Zeigt Kommentare der letzten 10 Beiträge aus den letzten 45 Tagen.',
     },
 
@@ -424,6 +428,10 @@ export const translations = {
       openPost: 'View post',
       empty: 'No comments on your recent posts.',
       channelFailed: 'Could not load @{username}:',
+      channelBlocked:
+        'Found {n} posts on @{username}, but Instagram refused the comments on every one of them. Usually the token is missing the “instagram_business_manage_comments” permission, in which case a freshly generated token fixes it. Instagram says:',
+      channelNoPosts: 'No posts found at all on @{username}.',
+      checkedLine: '@{username}: {n} posts checked',
       scopeNote: 'Shows comments on the last 10 posts from the past 45 days.',
     },
 

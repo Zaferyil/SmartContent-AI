@@ -79,7 +79,7 @@ async function commentsOn(media, account, token) {
  */
 export async function listForAccount(account, token) {
   const { data: media = [] } = await graph('me/media', {
-    params: { fields: 'id,caption,media_url,thumbnail_url,permalink,timestamp', limit: MAX_MEDIA },
+    params: { fields: 'id,caption,media_url,permalink,timestamp', limit: MAX_MEDIA },
     token,
   })
 
@@ -87,16 +87,29 @@ export async function listForAccount(account, token) {
 
   const perMedia = await Promise.all(
     worth.map((item) =>
-      commentsOn(item, account, token).catch((error) => {
-        // One post failing must not empty the whole screen — a deleted post or
-        // one with comments turned off answers with an error of its own.
-        console.error(`Comments on ${item.id} failed:`, error.message)
-        return []
-      })
+      commentsOn(item, account, token)
+        .then((comments) => ({ comments, error: null }))
+        .catch((error) => {
+          // One post failing must not empty the whole screen — a deleted post
+          // or one with comments turned off answers with an error of its own.
+          console.error(`Comments on ${item.id} failed:`, error.message)
+          return { comments: [], error: error.message }
+        })
     )
   )
 
-  return perMedia.flat()
+  const failures = perMedia.map((r) => r.error).filter(Boolean)
+
+  return {
+    comments: perMedia.flatMap((r) => r.comments),
+    // Counted and handed back rather than swallowed. Every post failing looks
+    // exactly like no post having a comment, and the screen cannot tell the
+    // difference on its own — which is the whole reason it silently showed
+    // nothing when the token was missing the comments permission.
+    posts: media.length,
+    checked: worth.length,
+    failures,
+  }
 }
 
 /** Replies to a comment as the account that owns the post. */

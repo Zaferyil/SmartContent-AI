@@ -264,7 +264,14 @@ export default function Inbox({ accounts = [], notify }) {
     )
   }
 
-  const brokenChannels = (data.channels ?? []).filter((x) => x.error)
+  const channels = data.channels ?? []
+  // Three different "nothing here" states, kept apart. The account could not be
+  // read at all; its posts were read but every one of them refused its comments
+  // — which is what a missing comments permission looks like; or there really
+  // is nothing to answer.
+  const brokenChannels = channels.filter((x) => x.error)
+  const blockedChannels = channels.filter((x) => !x.error && x.allFailed)
+  const emptyChannels = channels.filter((x) => !x.error && x.posts === 0)
 
   return (
     <div>
@@ -322,6 +329,27 @@ export default function Inbox({ accounts = [], notify }) {
         </div>
       )}
 
+      {blockedChannels.map((ch) => (
+        <p
+          key={ch.id}
+          className="mb-3 flex items-start gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-3.5 text-[13px] font-semibold text-rose-900"
+        >
+          <AlertTriangle size={15} strokeWidth={2.5} className="mt-px shrink-0" />
+          <span className="break-words">
+            {fill(c.channelBlocked, { username: ch.username, n: ch.checked })} {ch.readError}
+          </span>
+        </p>
+      ))}
+
+      {emptyChannels.map((ch) => (
+        <p
+          key={ch.id}
+          className="mb-3 rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 p-3.5 text-[13px] font-semibold text-slate-500"
+        >
+          {fill(c.channelNoPosts, { username: ch.username })}
+        </p>
+      ))}
+
       <div className="card mb-4 p-4 sm:p-5">
         <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
           {c.waitingLabel}
@@ -352,7 +380,19 @@ export default function Inbox({ accounts = [], notify }) {
         </ul>
       )}
 
-      <p className="mt-4 text-center text-xs font-semibold text-slate-400">{c.scopeNote}</p>
+      {/* What was actually looked at. Without it, "no comments" and "nothing
+          could be read" are the same screen. */}
+      <p className="mt-4 text-center text-xs font-semibold text-slate-400">
+        {channels.length > 0 && (
+          <>
+            {channels
+              .map((ch) => fill(c.checkedLine, { username: ch.username, n: ch.checked ?? 0 }))
+              .join(' · ')}
+            <br />
+          </>
+        )}
+        {c.scopeNote}
+      </p>
     </div>
   )
 }
