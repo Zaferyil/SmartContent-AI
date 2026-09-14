@@ -258,7 +258,19 @@ export default function Conversations({ accounts = [], channel, ago, notify, onC
       </div>
 
       {visible.length === 0 ? (
-        <p className="card p-8 text-center text-sm font-semibold text-slate-400">{c.empty}</p>
+        /*
+          Stated as a possibility, not a diagnosis. Conversations carry no count
+          to check against the way comments carry comments_count, so an empty
+          list here genuinely can mean nobody has written — but it can equally
+          mean the same restriction that withholds the comments, and someone
+          looking at a screen that only says "no conversations" cannot tell.
+        */
+        <div className="card p-6 text-center sm:p-8">
+          <p className="text-sm font-semibold text-slate-400">{c.empty}</p>
+          <p className="mx-auto mt-2 max-w-md text-xs font-semibold leading-relaxed text-slate-400">
+            {c.emptyWhy}
+          </p>
+        </div>
       ) : (
         <ul className="space-y-3">
           {visible.map((conversation) => (

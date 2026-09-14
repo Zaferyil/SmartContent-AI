@@ -267,6 +267,49 @@ export default function Inbox({ accounts = [], notify }) {
   const emptyChannels = channels.filter((x) => !x.error && x.posts === 0)
   const withholdingChannels = channels.filter((x) => !x.error && !x.allFailed && x.withheld)
 
+  // The comment list is filtered by the channel chips, so the explanation for an
+  // empty one has to be filtered the same way — otherwise picking a quiet
+  // channel shows the reason belonging to the other one.
+  const inScope = (list) => (channel === 'all' ? list : list.filter((x) => x.id === channel))
+
+  /**
+   * Why the list is empty, when it is.
+   *
+   * Four different silences, and they mean opposite things. The one that
+   * matters most is the third: Instagram reporting comments it will not hand
+   * over. That is not an empty inbox, it is a withheld one, and left unlabelled
+   * it reads as a bug in this app — which is how it read for weeks.
+   */
+  const emptyReason = () => {
+    const withholding = inScope(withholdingChannels)
+    if (withholding.length > 0) {
+      return {
+        tone: 'warn',
+        title: fill(c.withheldTitle, {
+          n: withholding.reduce((sum, ch) => sum + (ch.reportedComments ?? 0), 0),
+          channels: withholding.map((ch) => `@${ch.username}`).join(', '),
+        }),
+        detail: c.withheldWhy,
+      }
+    }
+
+    const blocked = inScope(blockedChannels)
+    if (blocked.length > 0) {
+      return {
+        tone: 'warn',
+        title: fill(c.blockedTitle, { channels: blocked.map((ch) => `@${ch.username}`).join(', ') }),
+        detail: c.blockedWhy,
+      }
+    }
+
+    const scoped = inScope(channels)
+    if (scoped.length > 0 && inScope(emptyChannels).length === scoped.length) {
+      return { tone: 'quiet', title: c.noPosts, detail: null }
+    }
+
+    return { tone: 'quiet', title: c.empty, detail: null }
+  }
+
   const segments = [
     { id: 'comments', label: c.tabComments, open: comments.filter((x) => !x.answered).length },
     { id: 'messages', label: c.tabMessages, open: dmWaiting },
@@ -378,7 +421,26 @@ export default function Inbox({ accounts = [], notify }) {
       </div>
 
       {visible.length === 0 ? (
-        <p className="card p-8 text-center text-sm font-semibold text-slate-400">{c.empty}</p>
+        (() => {
+          const reason = emptyReason()
+          return reason.tone === 'quiet' ? (
+            <p className="card p-8 text-center text-sm font-semibold text-slate-400">
+              {reason.title}
+            </p>
+          ) : (
+            <div className="card border-2 border-amber-200 bg-amber-50/60 p-5 sm:p-6">
+              <p className="flex items-start gap-2 text-sm font-extrabold text-amber-900">
+                <AlertTriangle size={16} strokeWidth={2.5} className="mt-px shrink-0" />
+                <span className="break-words">{reason.title}</span>
+              </p>
+              {reason.detail && (
+                <p className="mt-2 pl-6 text-[13px] font-semibold leading-relaxed text-amber-800">
+                  {reason.detail}
+                </p>
+              )}
+            </div>
+          )
+        })()
       ) : (
         <ul className="space-y-3">
           {visible.map((comment) => (

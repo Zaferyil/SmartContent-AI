@@ -42,7 +42,17 @@ export const translations = {
       channelNoPosts: 'Bei @{username} wurden gar keine Beiträge gefunden.',
       checkedLine: '@{username}: {n} Beiträge geprüft, {reported} Kommentare laut Instagram',
       channelWithheld:
-        'Instagram zählt {reported} Kommentare auf den Beiträgen von @{username}, hat uns aber nur {read} davon gezeigt. Das deutet darauf hin, dass dem Token die Berechtigung „instagram_business_manage_comments“ fehlt — ein neu erzeugtes Token behebt das.',
+        'Instagram zählt {reported} Kommentare auf den Beiträgen von @{username}, hat uns aber nur {read} davon gezeigt.',
+
+      withheldTitle:
+        'Instagram zählt {n} Kommentare auf {channels}, gibt den Inhalt aber nicht heraus.',
+      withheldWhy:
+        'Das ist kein Fehler in dieser App. Solange die Meta-App im Modus „Entwicklung“ läuft, liefert Instagram nur Daten von Personen, die in der App eine Rolle haben (Meta-Dashboard → Rollen). Kommentare von allen anderen werden gezählt, aber nicht ausgeliefert. Sobald die App auf „Live“ geschaltet ist, erscheinen sie hier — ohne Änderung am Code.',
+      blockedTitle: 'Instagram hat die Kommentare zu jedem Beitrag von {channels} abgelehnt.',
+      blockedWhy:
+        'Anders als beim Zählen kommt hier eine echte Fehlermeldung zurück. Meist fehlt dem Token die Berechtigung „instagram_business_manage_comments“ — ein in den Kanal-Einstellungen neu erzeugtes Token behebt das.',
+      noPosts:
+        'Auf diesen Kanälen wurden keine Beiträge aus den letzten 45 Tagen gefunden — es gibt also noch nichts, worauf jemand antworten könnte.',
       tabComments: 'Kommentare',
       tabMessages: 'Nachrichten',
       dm: {
@@ -60,6 +70,8 @@ export const translations = {
         windowClosed:
           'Instagram erlaubt Antworten nur innerhalb von 24 Stunden nach der letzten Nachricht. Dieses Fenster ist zu. Du kannst noch direkt in der Instagram-App antworten.',
         empty: 'Keine Nachrichten.',
+        emptyWhy:
+          'Falls du welche erwartest: solange die Meta-App im Modus „Entwicklung“ läuft, liefert Instagram nur Gespräche mit Personen, die in der App eine Rolle haben. Dieselbe Einschränkung betrifft auch die Kommentare.',
         channelFailed: '@{username} konnte nicht geladen werden:',
         unreadable:
           'Bei @{username} hat Instagram {found} Gespräche aufgeführt, aber nur {usable} davon lesbar gemacht.',
@@ -491,7 +503,16 @@ export const translations = {
       channelNoPosts: 'No posts found at all on @{username}.',
       checkedLine: '@{username}: {n} posts checked, {reported} comments according to Instagram',
       channelWithheld:
-        'Instagram counts {reported} comments on @{username}’s posts but showed us only {read} of them. That usually means the token is missing the “instagram_business_manage_comments” permission — a freshly generated token fixes it.',
+        'Instagram counts {reported} comments on @{username}’s posts but showed us only {read} of them.',
+
+      withheldTitle: 'Instagram counts {n} comments on {channels} but will not hand them over.',
+      withheldWhy:
+        'This is not a fault in this app. While the Meta app is in Development mode, Instagram only returns data from people who hold a role on it (Meta dashboard → Roles). Comments from everyone else are counted but not delivered. Switching the app to Live makes them appear here, with no change to the code.',
+      blockedTitle: 'Instagram refused the comments on every post from {channels}.',
+      blockedWhy:
+        'Unlike the counting case, this comes back as a real error. Usually the token is missing the “instagram_business_manage_comments” permission — generating a fresh one under Channels fixes it.',
+      noPosts:
+        'No posts from the past 45 days were found on these channels, so there is nothing for anyone to reply to yet.',
       tabComments: 'Comments',
       tabMessages: 'Messages',
       dm: {
@@ -509,6 +530,8 @@ export const translations = {
         windowClosed:
           'Instagram only allows replies within 24 hours of the last message, and that window has closed. You can still reply in the Instagram app itself.',
         empty: 'No messages.',
+        emptyWhy:
+          'If you were expecting some: while the Meta app is in Development mode, Instagram only returns conversations with people who hold a role on it. The same restriction affects the comments.',
         channelFailed: 'Could not load @{username}:',
         unreadable:
           'Instagram listed {found} conversations for @{username} but only made {usable} of them readable.',
