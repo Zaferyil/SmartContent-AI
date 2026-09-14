@@ -17,8 +17,10 @@ const KEY = 'posts'
  * @property {?string} accountId    which connected account published it. Null on
  *                                  posts recorded before accounts existed; those
  *                                  resolve to the first account of the platform
- * @property {string}  postType     FEED | STORY
- * @property {string}  imageUrl     the R2 URL Instagram fetched
+ * @property {string}  postType     FEED | CAROUSEL | STORY | REELS
+ * @property {?string} imageUrl     the R2 URL Instagram fetched. Null on a reel,
+ *                                  which has no still to show
+ * @property {?string} videoUrl     the R2 URL of a reel's video, null otherwise
  * @property {string}  caption
  * @property {string}  publishedAt  ISO 8601, UTC
  * @property {?object} metrics      null until first fetched
@@ -36,6 +38,7 @@ export async function recordPublished({
   accountId = null,
   permalink,
   imageUrl,
+  videoUrl,
   caption,
   postType,
 }) {
@@ -54,6 +57,7 @@ export async function recordPublished({
       accountId,
       postType: postType ?? 'FEED',
       imageUrl: imageUrl ?? null,
+      videoUrl: videoUrl ?? null,
       caption: caption ?? '',
       publishedAt: new Date().toISOString(),
       metrics: null,

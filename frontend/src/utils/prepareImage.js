@@ -1,5 +1,3 @@
-import { api } from './api'
-
 /**
  * Normalises a user-picked file into something Instagram will accept.
  *
@@ -73,48 +71,4 @@ export function aspectWarning(width, height) {
   if (ratio < 0.8) return 'too-tall'
   if (ratio > 1.91) return 'too-wide'
   return null
-}
-
-/** Uploads through a presigned URL and returns the public URL Instagram will fetch. */
-export async function uploadToStorage(blob) {
-  // Asking for the presigned URL goes through our own API, so it carries the
-  // app password. The upload itself must not: it goes to Cloudflare, the URL's
-  // signature is its authorisation, and an extra header would both leak the
-  // password to a third party and break the signature.
-  const presign = await api('upload-url', { body: { size: blob.size } })
-
-  let putResponse
-  try {
-    putResponse = await fetch(presign.uploadUrl, {
-      method: 'PUT',
-      headers: presign.headers,
-      body: blob,
-    })
-  } catch (error) {
-    // The browser reports a blocked cross-origin request and a host that does
-    // not exist the same way: a bare TypeError with nothing in it. The one
-    // thing that separates them is where the upload was being sent — a wrong
-    // or truncated R2 account id produces an address that resolves to nothing,
-    // which looks exactly like a CORS rejection from the outside. So the
-    // message carries the host, which makes that visible at a glance.
-    let host = 'unknown'
-    try {
-      host = new URL(presign.uploadUrl).host
-    } catch {
-      /* keep 'unknown' */
-    }
-
-    throw Object.assign(new Error(`storage-blocked:${host}:${error.message}`), {
-      code: 'storage-blocked',
-      origin: window.location.origin,
-      host,
-      cause: error,
-    })
-  }
-
-  if (!putResponse.ok) {
-    throw new Error(`Upload rejected by storage (HTTP ${putResponse.status})`)
-  }
-
-  return presign.publicUrl
 }

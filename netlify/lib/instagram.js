@@ -202,17 +202,28 @@ export async function createContainer(
  *          processing. Throws if Instagram gave up on the media.
  */
 export async function isContainerReady(containerId, token) {
-  const { status_code: status } = await graph(containerId, {
-    params: { fields: 'status_code' },
+  // `status` alongside `status_code`: the code says only that it failed, while
+  // status carries Meta's sentence about why. For an image that is rarely
+  // needed; for a reel it is the only clue there is — the video was fetched,
+  // transcoded and rejected somewhere the user cannot see, and "ERROR" on its
+  // own leaves them re-exporting at random.
+  const container = await graph(containerId, {
+    params: { fields: 'status_code,status' },
     token,
   })
 
-  if (status === 'FINISHED') return true
-  if (status === 'ERROR' || status === 'EXPIRED') {
-    const error = new Error(`Media processing failed with status ${status}`)
+  const code = container.status_code
+  if (code === 'FINISHED') return true
+
+  if (code === 'ERROR' || code === 'EXPIRED') {
+    const detail = typeof container.status === 'string' ? container.status.trim() : ''
+    const error = new Error(
+      detail ? `Instagram rejected the media: ${detail}` : `Media processing failed with status ${code}`
+    )
     error.statusCode = 502
     throw error
   }
+
   return false
 }
 

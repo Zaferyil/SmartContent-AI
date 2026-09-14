@@ -29,7 +29,7 @@ export const handler = async (event) => {
       return json(400, { error: 'Request body is not valid JSON' })
     }
 
-    const { containerId, imageUrl, caption, postType, accountId } = body
+    const { containerId, imageUrl, videoUrl, caption, postType, accountId } = body
     if (!containerId) return json(400, { error: 'Provide a containerId' })
 
     // The container belongs to one account, so this half has to run as the same
@@ -41,7 +41,7 @@ export const handler = async (event) => {
     }
 
     const mediaId = await publishContainer(containerId, userId, token)
-    await recordPublished({ mediaId, accountId: id, imageUrl, caption, postType }).catch((e) =>
+    await recordPublished({ mediaId, accountId: id, imageUrl, videoUrl, caption, postType }).catch((e) =>
       console.error('Could not record the published post:', e.message)
     )
     return json(200, { ok: true, done: true, mediaId, containerId, accountId: id })

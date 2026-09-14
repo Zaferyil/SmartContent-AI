@@ -56,9 +56,14 @@ export const handler = async (event) => {
       // the history the analytics screens are built on.
       // A carousel has no single image; the first one is what the reports show.
       const thumbnail = imageUrl ?? imageUrls?.[0] ?? null
-      await recordPublished({ mediaId, accountId: id, imageUrl: thumbnail, caption, postType }).catch(
-        (e) => console.error('Could not record the published post:', e.message)
-      )
+      await recordPublished({
+        mediaId,
+        accountId: id,
+        imageUrl: thumbnail,
+        videoUrl: videoUrl ?? null,
+        caption,
+        postType,
+      }).catch((e) => console.error('Could not record the published post:', e.message))
       return json(200, { ok: true, done: true, postType, mediaId, containerId, accountId: id })
     }
 

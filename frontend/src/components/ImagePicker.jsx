@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react'
 import { ImagePlus, X, Loader2, CheckCircle2, AlertTriangle, Plus } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
-import { prepareImage, aspectWarning, uploadToStorage } from '../utils/prepareImage'
+import { prepareImage, aspectWarning } from '../utils/prepareImage'
+import { uploadToStorage } from '../utils/storage'
 
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
@@ -79,7 +80,7 @@ export default function ImagePicker({ onUploaded, notify, max = 1 }) {
         const { blob, width, height, previewUrl } = await prepareImage(file)
         setItems((current) => [...current, { key, previewUrl, width, height, state: 'working' }])
 
-        const url = await uploadToStorage(blob)
+        const url = await uploadToStorage(blob, { contentType: 'image/jpeg' })
         setItems((current) => {
           const next = current.map((i) => (i.key === key ? { ...i, url, state: 'done' } : i))
           report(next)

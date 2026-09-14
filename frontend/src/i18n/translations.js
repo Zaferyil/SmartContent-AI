@@ -121,7 +121,6 @@ export const translations = {
         STORY: 'Story',
         REELS: 'Reels',
       },
-      reelsUnavailable: 'Video-Unterstützung für Reels ist noch nicht fertig.',
       storyNoCaption: 'In Storys erscheint kein Text — Instagram nimmt keine Bildunterschrift an.',
       storyNothingToWrite:
         'Für Storys wird kein Text gebraucht. Lade ein Bild hoch und veröffentliche es direkt.',
@@ -160,6 +159,36 @@ export const translations = {
         uploadBlocked:
           'Der Browser konnte den Upload nicht an {host} senden. Mögliche Ursachen: {origin} fehlt in den CORS-Einstellungen des Buckets, die R2-Konto-ID ist falsch, oder eine Browser-Erweiterung blockiert die Anfrage. ({reason})',
         publishFailed: 'Veröffentlichung fehlgeschlagen.',
+      },
+      video: {
+        subtitle: 'Lade dein Reel hoch, schreib den Text, veröffentliche es.',
+        label: 'Video',
+        captionLabel: 'Text',
+        pick: 'Video auswählen oder hierher ziehen',
+        hint: 'MP4 oder MOV · 3 Sekunden bis 15 Minuten · max. 300 MB · 9:16 empfohlen',
+        howItWorks:
+          'Video hochladen, Text selbst schreiben, veröffentlichen. Ein Reel geht sofort raus und wird nicht als Entwurf gespeichert.',
+        captionPlaceholder: 'Schreib den Text für dein Reel…',
+        notSaved: 'Reels werden sofort veröffentlicht — sie werden nicht im Kalender gespeichert.',
+        change: 'Ändern',
+        remove: 'Entfernen',
+        uploading: 'Wird hochgeladen… {percent} %',
+        ready: 'Hochgeladen',
+        uploadFailed: 'Video konnte nicht hochgeladen werden.',
+        uploadFailedShort: 'Nicht hochgeladen',
+        needVideo: 'Wähle zuerst ein Video aus.',
+        processing: 'Instagram verarbeitet das Video — das kann einige Minuten dauern…',
+        problems: {
+          'not-a-video': 'Instagram nimmt für Reels MP4 oder MOV. Diese Datei ist keins von beiden.',
+          'video-too-large': 'Video größer als 300 MB — das ist Instagrams Grenze für ein Reel.',
+          'video-too-short': 'Video kürzer als 3 Sekunden — das ist Instagrams Minimum für ein Reel.',
+          'video-too-long': 'Video länger als 15 Minuten — das ist Instagrams Maximum für ein Reel.',
+          'video-too-wide': 'Breiter als 1920 Pixel — Instagram rechnet Reels darauf herunter.',
+          'video-not-vertical':
+            'Kein Hochformat. Instagram zeigt Reels in 9:16 und schneidet zu oder ergänzt Balken.',
+          'video-unreadable':
+            'Dieser Browser konnte das Video nicht lesen, Länge und Format wurden hier also nicht geprüft. Instagram prüft es beim Veröffentlichen.',
+        },
       },
       formats: {
         caption: 'Beitragstext',
@@ -539,7 +568,6 @@ export const translations = {
         STORY: 'Story',
         REELS: 'Reels',
       },
-      reelsUnavailable: 'Video support for Reels is not ready yet.',
       storyNoCaption: 'Stories show no text — Instagram does not accept a caption.',
       storyNothingToWrite:
         'Stories need no copy. Upload an image and publish it straight away.',
@@ -577,6 +605,36 @@ export const translations = {
         uploadBlocked:
           'The browser could not send the upload to {host}. Possible causes: {origin} is missing from the bucket’s CORS settings, the R2 account id is wrong, or a browser extension is blocking the request. ({reason})',
         publishFailed: 'Publishing failed.',
+      },
+      video: {
+        subtitle: 'Upload your reel, write the caption, publish it.',
+        label: 'Video',
+        captionLabel: 'Caption',
+        pick: 'Choose a video or drop it here',
+        hint: 'MP4 or MOV · 3 seconds to 15 minutes · 300 MB max · 9:16 recommended',
+        howItWorks:
+          'Upload the video, write the caption yourself, publish. A reel goes out straight away and is not saved as a draft.',
+        captionPlaceholder: 'Write the caption for your reel…',
+        notSaved: 'Reels are published straight away — they are not kept in the calendar.',
+        change: 'Change',
+        remove: 'Remove',
+        uploading: 'Uploading… {percent}%',
+        ready: 'Uploaded',
+        uploadFailed: 'Could not upload the video.',
+        uploadFailedShort: 'Not uploaded',
+        needVideo: 'Choose a video first.',
+        processing: 'Instagram is processing the video — this can take a few minutes…',
+        problems: {
+          'not-a-video': 'Instagram takes MP4 or MOV for reels. This file is neither.',
+          'video-too-large': 'Video is larger than 300 MB — Instagram’s limit for a reel.',
+          'video-too-short': 'Video is shorter than 3 seconds — Instagram’s minimum for a reel.',
+          'video-too-long': 'Video is longer than 15 minutes — Instagram’s maximum for a reel.',
+          'video-too-wide': 'Wider than 1920 pixels — Instagram scales reels down to that.',
+          'video-not-vertical':
+            'Not a vertical video. Instagram shows reels at 9:16 and will crop it or add bars.',
+          'video-unreadable':
+            'This browser could not read the video, so length and size were not checked here. Instagram checks it when publishing.',
+        },
       },
       formats: {
         caption: 'Post caption',

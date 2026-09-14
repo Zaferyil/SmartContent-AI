@@ -22,15 +22,14 @@ import { fetchSchedule, saveScheduled } from '../utils/schedule'
 import { atTime, addDays } from '../utils/calendar'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
+import VideoPicker from './VideoPicker'
 import ChannelResults from './ChannelResults'
 
-// Reels needs a video pipeline that a 10s synchronous function cannot run, so
-// it is shown but not selectable until the background function exists.
 const POST_TYPES = [
-  { id: 'FEED', icon: Image, ready: true },
-  { id: 'CAROUSEL', icon: Album, ready: true },
-  { id: 'STORY', icon: Clock, ready: true },
-  { id: 'REELS', icon: Film, ready: false },
+  { id: 'FEED', icon: Image },
+  { id: 'CAROUSEL', icon: Album },
+  { id: 'STORY', icon: Clock },
+  { id: 'REELS', icon: Film },
 ]
 
 // Meta's ceiling for a carousel.
@@ -55,6 +54,10 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // Always a list, whatever the post type — the picker reports one shape and
   // the carousel is the only type that reads past the first entry.
   const [imageUrls, setImageUrls] = useState([])
+  // A reel's video, once it is in storage. Kept apart from imageUrls rather than
+  // squeezed in beside them: they go to different Graph parameters, and a video
+  // sitting in an image field is a post that fails at the last step.
+  const [videoUrl, setVideoUrl] = useState(null)
   const [publishing, setPublishing] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [postType, setPostType] = useState('FEED')
@@ -75,6 +78,16 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
     })
   }, [accounts])
 
+  // Switching the post type swaps the picker out, and a picker that is not on
+  // screen cannot show what it holds. Without this the uploads from the previous
+  // type stay in state behind an empty picker — a publish button offering to
+  // send an image that is nowhere in sight.
+  useEffect(() => {
+    setImageUrls([])
+    setVideoUrl(null)
+    setResults(null)
+  }, [postType])
+
   const toggleAccount = (id) =>
     setAccountIds((current) =>
       current.includes(id)
@@ -94,12 +107,21 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // send it.
   const isStory = postType === 'STORY'
   const isCarousel = postType === 'CAROUSEL'
+  // A reel is the short way round on purpose: upload the video, write the
+  // caption by hand, publish. No caption is generated from it — the copy that
+  // makes a reel work is written against the cut, and this screen has never
+  // seen the cut. Nothing is kept either: the calendar has no field for a video,
+  // so a "draft" reel would be a draft with the video missing from it.
+  const isReel = postType === 'REELS'
   const imageUrl = imageUrls[0] ?? null
 
   // A carousel of one is a feed post, so Instagram refuses it. Catching it here
   // keeps the button from offering work that cannot succeed.
   const enoughImages = isCarousel ? imageUrls.length >= 2 : Boolean(imageUrl)
-  const canPublish = enoughImages && (isStory || Boolean(result))
+  const hasMedia = isReel ? Boolean(videoUrl) : enoughImages
+  // The caption is optional on a reel — Instagram publishes one without it, and
+  // demanding text the user did not want is the app inventing a rule.
+  const canPublish = hasMedia && (isStory || isReel || Boolean(result))
 
   const run = async () => {
     // The copy is written from the image, so there is nothing to write without
@@ -126,8 +148,15 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   }
 
   const publish = async () => {
-    if (!enoughImages) {
-      return notify(isCarousel ? t.create.media.needTwoImages : t.create.media.needImage, 'warn')
+    if (!hasMedia) {
+      return notify(
+        isReel
+          ? t.create.video.needVideo
+          : isCarousel
+            ? t.create.media.needTwoImages
+            : t.create.media.needImage,
+        'warn'
+      )
     }
     if (targets.length === 0) return notify(t.create.needPlatform, 'warn')
 
@@ -140,6 +169,7 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
           {
             imageUrl,
             imageUrls,
+            videoUrl,
             // Nothing for a story: Instagram ignores the field, and sending copy
             // it will not show would only make the record claim otherwise.
             caption: isStory ? '' : result,
@@ -225,7 +255,12 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
 
   return (
     <div>
-      <ScreenHeader title={t.create.title} subtitle={t.create.subtitle} />
+      {/* The standing subtitle promises copy written from an image, which is
+          not what this screen does for a reel. */}
+      <ScreenHeader
+        title={t.create.title}
+        subtitle={isReel ? t.create.video.subtitle : t.create.subtitle}
+      />
 
       <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
         {/* ---------- Controls ---------- */}
@@ -234,19 +269,17 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
             <span className="label">{t.create.postTypeLabel}</span>
             {/* Four types now: two columns on a phone, one row from sm up. */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {POST_TYPES.map(({ id, icon: Icon, ready }) => {
+              {POST_TYPES.map(({ id, icon: Icon }) => {
                 const active = postType === id
                 return (
                   <button
                     key={id}
-                    onClick={() => (ready ? setPostType(id) : notify(t.create.reelsUnavailable, 'warn'))}
+                    onClick={() => setPostType(id)}
                     aria-pressed={active}
                     className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 py-3 text-[13px] font-bold transition-all ${
                       active
                         ? 'border-brand-500 bg-brand-50 text-brand-700'
-                        : ready
-                          ? 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300'
-                          : 'border-dashed border-slate-200 bg-white/40 text-slate-300'
+                        : 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300'
                     }`}
                   >
                     <Icon size={18} strokeWidth={2.5} />
@@ -255,23 +288,42 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                 )
               })}
             </div>
-            {postType === 'STORY' && (
+            {isStory && (
               <p className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-amber-700">
                 <AlertTriangle size={13} strokeWidth={2.5} className="mt-px shrink-0" />
                 {t.create.storyNoCaption}
               </p>
             )}
+            {isReel && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-slate-500">
+                <Film size={13} strokeWidth={2.5} className="mt-px shrink-0" />
+                {t.create.video.howItWorks}
+              </p>
+            )}
           </div>
 
-          {/* Keyed on the post type: switching between one image and ten has to
-              start the picker over, or the leftovers of the other mode linger. */}
-          <ImagePicker
-            key={isCarousel ? 'many' : 'one'}
-            max={isCarousel ? MAX_CAROUSEL : 1}
-            onUploaded={setImageUrls}
-            notify={notify}
-          />
+          {isReel ? (
+            <VideoPicker onUploaded={setVideoUrl} notify={notify} />
+          ) : (
+            /* Keyed on the post type: switching between one image and ten has to
+               start the picker over, or the leftovers of the other mode linger. */
+            <ImagePicker
+              key={isCarousel ? 'many' : 'one'}
+              max={isCarousel ? MAX_CAROUSEL : 1}
+              onUploaded={setImageUrls}
+              notify={notify}
+            />
+          )}
 
+          {/*
+            Format, tone and topic exist only to steer the caption writer, and a
+            reel does not use it: the copy is typed by hand. Left on screen they
+            would be three sets of controls that change nothing about the post —
+            which reads as the app doing something it is not. The channel picker
+            below them stays: a reel goes to a channel like anything else.
+          */}
+          {!isReel && (
+          <>
           <div>
             <span className="label">{t.create.formatLabel}</span>
             <div className="flex flex-wrap gap-2">
@@ -349,6 +401,8 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
               </button>
             </p>
           </div>
+          </>
+          )}
 
           <div>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
@@ -413,45 +467,53 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
             )}
           </div>
 
-          <button
-            onClick={run}
-            disabled={busy || isStory}
-            title={isStory ? t.create.storyNoCaption : undefined}
-            className="btn-primary w-full"
-          >
-            {busy ? (
-              <>
-                <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
-                {t.create.generating}
-              </>
-            ) : (
-              <>
-                <Wand2 size={18} strokeWidth={2.5} />
-                {t.create.generate}
-              </>
-            )}
-          </button>
+          {!isReel && (
+            <>
+              <button
+                onClick={run}
+                disabled={busy || isStory}
+                title={isStory ? t.create.storyNoCaption : undefined}
+                className="btn-primary w-full"
+              >
+                {busy ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
+                    {t.create.generating}
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={18} strokeWidth={2.5} />
+                    {t.create.generate}
+                  </>
+                )}
+              </button>
 
-          <div>
-            <span className="label">{t.create.ideasTitle}</span>
-            <div className="flex flex-wrap gap-2">
-              {IDEA_KEYS.map((key) => (
-                <button
-                  key={key}
-                  onClick={() => setTopic(t.create.ideas[key])}
-                  className="rounded-xl border-2 border-dashed border-slate-200 px-3 py-2 text-[13px] font-semibold text-slate-500 transition-colors hover:border-brand-400 hover:text-brand-600"
-                >
-                  {t.create.ideas[key]}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div>
+                <span className="label">{t.create.ideasTitle}</span>
+                <div className="flex flex-wrap gap-2">
+                  {IDEA_KEYS.map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => setTopic(t.create.ideas[key])}
+                      className="rounded-xl border-2 border-dashed border-slate-200 px-3 py-2 text-[13px] font-semibold text-slate-500 transition-colors hover:border-brand-400 hover:text-brand-600"
+                    >
+                      {t.create.ideas[key]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* ---------- Result ---------- */}
         <div className="card flex flex-col p-5 sm:p-6 lg:col-span-3">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-extrabold text-slate-700">{t.create.resultLabel}</h3>
+            {/* "Generated content" over a box nothing generated into is the
+                app describing work it did not do. */}
+            <h3 className="text-sm font-extrabold text-slate-700">
+              {isReel ? t.create.video.captionLabel : t.create.resultLabel}
+            </h3>
             {result && (
               <span className="text-xs font-semibold text-slate-400">
                 {result.length} {t.create.characters}
@@ -467,7 +529,8 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
             the button and edit what comes back.
 
             A story keeps the plain message — Instagram discards the caption, so
-            there is nothing to type.
+            there is nothing to type. A reel types into the same box, and this is
+            the only way its caption can be written.
           */}
           <div className="flex min-h-[260px] flex-1 rounded-2xl border-2 border-slate-100 bg-white/60 p-4 sm:min-h-[320px]">
             {isStory ? (
@@ -486,18 +549,37 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                 value={result}
                 onChange={(e) => setResult(e.target.value)}
                 disabled={busy}
-                placeholder={t.create.resultPlaceholder}
+                placeholder={isReel ? t.create.video.captionPlaceholder : t.create.resultPlaceholder}
                 aria-label={t.create.resultLabel}
                 className="w-full flex-1 resize-none bg-transparent text-[15px] leading-relaxed text-slate-700 outline-none placeholder:text-slate-400 disabled:opacity-60"
               />
             )}
           </div>
 
+          {/*
+            No draft button for a reel, and not because it was awkward: a
+            scheduled post stores an image url and has no field for a video, so
+            "save as draft" would keep the caption, drop the video, and leave a
+            calendar entry that cannot publish. Saying so is the honest version
+            of a button that appears to work.
+          */}
+          {isReel && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button onClick={copy} disabled={!result} className="btn-ghost !py-3 flex-1">
+                {copied ? <Check size={17} strokeWidth={3} /> : <Copy size={17} strokeWidth={2.5} />}
+                {copied ? t.create.copied : t.create.copy}
+              </button>
+              <p className="w-full text-xs font-semibold text-slate-400">
+                {t.create.video.notSaved}
+              </p>
+            </div>
+          )}
+
           {/* Shown as soon as there is anything worth keeping, not only once
               copy exists: an image with the caption still to come is a draft
               too, and a story never has copy at all. Copy and regenerate stay
               off until there is text for them to act on. */}
-          {(result || imageUrl) && (
+          {!isReel && (result || imageUrl) && (
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <button onClick={copy} disabled={!result} className="btn-ghost !py-3">
                 {copied ? <Check size={17} strokeWidth={3} /> : <Copy size={17} strokeWidth={2.5} />}
@@ -533,7 +615,15 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
               {publishing ? (
                 <>
                   <Loader2 size={18} className="animate-spin" strokeWidth={2.5} />
-                  {waiting ? t.create.media.processing : t.create.media.publishing}
+                  {/* Instagram transcodes a reel after fetching it, which is
+                      minutes rather than the moment an image takes. Saying
+                      "processing the image" through that wait is both wrong and
+                      the point at which someone closes the tab. */}
+                  {waiting
+                    ? isReel
+                      ? t.create.video.processing
+                      : t.create.media.processing
+                    : t.create.media.publishing}
                 </>
               ) : (
                 <>
