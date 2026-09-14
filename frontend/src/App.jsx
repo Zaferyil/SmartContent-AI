@@ -81,7 +81,14 @@ function Shell() {
 
   const screens = {
     platforms: <PlatformSelector selected={selectedPlatforms} onChange={setSelectedPlatforms} />,
-    create: <ContentCreator selected={selectedPlatforms} accounts={accounts} notify={notify} />,
+    create: (
+      <ContentCreator
+        selected={selectedPlatforms}
+        accounts={accounts}
+        notify={notify}
+        onGoToSchedule={() => setActiveTab('schedule')}
+      />
+    ),
     schedule: (
       <ContentCalendar
         accounts={accounts}

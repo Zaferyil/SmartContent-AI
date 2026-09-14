@@ -18,6 +18,8 @@ import { getPlatform } from '../data/platforms'
 import { generateCaption } from '../utils/generateCaption'
 import { publishPost } from '../utils/publishPost'
 import { fanOut, outcome } from '../utils/fanOut'
+import { fetchSchedule, saveScheduled } from '../utils/schedule'
+import { atTime, addDays } from '../utils/calendar'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
 import ChannelResults from './ChannelResults'
@@ -42,7 +44,7 @@ const IDEA_KEYS = ['launch', 'tip', 'story', 'behind']
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
 
-export default function ContentCreator({ selected, accounts = [], notify }) {
+export default function ContentCreator({ selected, accounts = [], notify, onGoToSchedule }) {
   const { t, language } = useLanguage()
   const [format, setFormat] = useState('caption')
   const [tone, setTone] = useState('friendly')
@@ -58,6 +60,7 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
   const [postType, setPostType] = useState('FEED')
   const [accountIds, setAccountIds] = useState([])
   const [results, setResults] = useState(null)
+  const [savingDraft, setSavingDraft] = useState(false)
   const captionRef = useRef(null)
 
   // Default to the first connected account, and follow the list if it arrives
@@ -164,6 +167,49 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
     } finally {
       setPublishing(false)
       setWaiting(false)
+    }
+  }
+
+  /**
+   * Keeps the post for later, in the calendar, as a draft.
+   *
+   * This button used to fire the "saved to drafts" message and write nothing at
+   * all — close the tab and the copy was gone. A draft is a real calendar entry
+   * now, one per selected channel, the same shape publishing uses.
+   */
+  const saveDraft = async () => {
+    if (!imageUrl && !result.trim()) return notify(t.create.nothingToSave, 'warn')
+    if (targets.length === 0) return notify(t.create.needPlatform, 'warn')
+
+    setSavingDraft(true)
+    try {
+      // A draft still needs a slot to sit in. Taken from the publishing settings
+      // rather than picked here, so the calendar does not fill up with a time
+      // the user never chose.
+      const { settings } = await fetchSchedule()
+      const when = atTime(addDays(new Date(), 1), settings?.preferredTimes?.[0] ?? '09:00')
+
+      await saveScheduled(
+        targets.map((account) => ({
+          accountId: account.id,
+          platform: account.platform,
+          postType,
+          imageUrl,
+          imageUrls,
+          caption: isStory ? '' : result,
+          scheduledFor: when.toISOString(),
+          status: 'draft',
+        }))
+      )
+
+      notify(
+        targets.length > 1 ? fill(t.create.savedMany, { n: targets.length }) : t.create.saved
+      )
+      onGoToSchedule?.()
+    } catch (error) {
+      notify(error.message, 'warn')
+    } finally {
+      setSavingDraft(false)
     }
   }
 
@@ -447,18 +493,26 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             )}
           </div>
 
-          {result && (
+          {/* Shown as soon as there is anything worth keeping, not only once
+              copy exists: an image with the caption still to come is a draft
+              too, and a story never has copy at all. Copy and regenerate stay
+              off until there is text for them to act on. */}
+          {(result || imageUrl) && (
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <button onClick={copy} className="btn-ghost !py-3">
+              <button onClick={copy} disabled={!result} className="btn-ghost !py-3">
                 {copied ? <Check size={17} strokeWidth={3} /> : <Copy size={17} strokeWidth={2.5} />}
                 {copied ? t.create.copied : t.create.copy}
               </button>
-              <button onClick={run} disabled={busy} className="btn-ghost !py-3">
+              <button onClick={run} disabled={busy || isStory || !result} className="btn-ghost !py-3">
                 <RefreshCw size={17} strokeWidth={2.5} className={busy ? 'animate-spin' : ''} />
                 {t.create.regenerate}
               </button>
-              <button onClick={() => notify(t.create.saved)} className="btn-ghost !py-3">
-                <Bookmark size={17} strokeWidth={2.5} />
+              <button onClick={saveDraft} disabled={savingDraft} className="btn-ghost !py-3">
+                {savingDraft ? (
+                  <Loader2 size={17} className="animate-spin" strokeWidth={2.5} />
+                ) : (
+                  <Bookmark size={17} strokeWidth={2.5} />
+                )}
                 {t.create.save}
               </button>
             </div>

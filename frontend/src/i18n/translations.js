@@ -57,7 +57,9 @@ export const translations = {
       needTopic: 'Bitte gib zuerst ein Thema ein.',
       needPlatform: 'Bitte wähle mindestens einen Kanal aus.',
       generated: 'Inhalt ist fertig!',
-      saved: 'In den Entwürfen gespeichert.',
+      saved: 'Als Entwurf im Kalender gespeichert.',
+      savedMany: 'Als {n} Entwürfe im Kalender gespeichert — einer pro Kanal.',
+      nothingToSave: 'Es gibt noch nichts zu speichern — lade ein Bild hoch oder schreib einen Text.',
       characters: 'Zeichen',
       postTypeLabel: 'Beitragsart',
       postTypes: {
@@ -420,7 +422,9 @@ export const translations = {
       needTopic: 'Please enter a topic first.',
       needPlatform: 'Please select at least one channel.',
       generated: 'Content is ready!',
-      saved: 'Saved to drafts.',
+      saved: 'Saved to the calendar as a draft.',
+      savedMany: 'Saved as {n} drafts in the calendar — one per channel.',
+      nothingToSave: 'Nothing to save yet — upload an image or write some copy.',
       characters: 'characters',
       postTypeLabel: 'Post type',
       postTypes: {
