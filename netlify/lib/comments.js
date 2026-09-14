@@ -33,6 +33,20 @@ const COMMENT_FIELDS =
  */
 const MINIMAL_FIELDS = 'id,text,timestamp,username'
 
+/**
+ * The same comments, asked for as a field of the post rather than as its own
+ * edge. It is a different path through Meta's API and does not always answer
+ * the same way, so it is worth one attempt before concluding the comments
+ * cannot be read at all.
+ */
+async function commentsAsField(media, token) {
+  const result = await graph(media.id, {
+    params: { fields: `comments{${MINIMAL_FIELDS}}` },
+    token,
+  })
+  return result.comments?.data ?? []
+}
+
 const recent = (timestamp) =>
   Date.now() - Date.parse(timestamp) < WITHIN_DAYS * 24 * 60 * 60 * 1000
 
@@ -43,13 +57,9 @@ const recent = (timestamp) =>
  * for it, and the distinction is the whole point of the screen — an unanswered
  * question under a post is the one thing here that costs money.
  */
-async function commentsOn(media, account, token, fields = COMMENT_FIELDS) {
-  const { data = [] } = await graph(`${media.id}/comments`, {
-    params: { fields },
-    token,
-  })
-
-  const kept = data
+/** Turns Meta's rows into what the screen shows, whichever call produced them. */
+function shape(rows, media, account) {
+  return rows
     // Our own comments are not questions to answer.
     .filter((comment) => comment.username !== account.username)
     .map((comment) => {
@@ -72,28 +82,39 @@ async function commentsOn(media, account, token, fields = COMMENT_FIELDS) {
         media: {
           id: media.id,
           permalink: media.permalink ?? null,
-          thumbnail: media.thumbnail_url ?? media.media_url ?? null,
+          thumbnail: media.media_url ?? null,
           caption: media.caption ?? '',
         },
         accountId: account.id,
         accountUsername: account.username,
       }
     })
-
-  // `read` is everything the API returned, before our own comments are dropped.
-  // Comparing that against Instagram's own count is what shows whether comments
-  // are being withheld; comparing the filtered list would count our own replies
-  // as missing.
-  return { kept, read: data.length }
 }
 
+/** The comments edge, as Meta returns them. */
+const commentRows = async (media, token, fields) =>
+  (await graph(`${media.id}/comments`, { params: { fields }, token })).data ?? []
+
 /**
- * Every comment worth showing for one account, newest first.
+ * The three ways to ask, in the order they are worth trying.
  *
- * The posts are read first and then their comments all at once: ten posts one
- * after another is ten round trips, which on a synchronous function is most of
- * the budget before anything is rendered.
+ * Meta answers 200 with an empty list in more than one situation that is not
+ * "there are no comments" — a field the account may not read, or an edge that
+ * behaves differently from the same data asked for as a field of the post. When
+ * the post's own count disagrees with what came back, each of these runs in
+ * turn, and whichever returns rows is both the answer and the fix.
  */
+const SOURCES = [
+  { name: 'full', get: (media, token) => commentRows(media, token, COMMENT_FIELDS) },
+  { name: 'plain', get: (media, token) => commentRows(media, token, MINIMAL_FIELDS) },
+  {
+    name: 'field',
+    get: async (media, token) =>
+      (await graph(media.id, { params: { fields: `comments{${MINIMAL_FIELDS}}` }, token }))
+        .comments?.data ?? [],
+  },
+]
+
 export async function listForAccount(account, token) {
   // comments_count is Instagram's own count for the post. Asking for it costs
   // nothing extra and settles the question the counts alone cannot: whether a
@@ -112,27 +133,31 @@ export async function listForAccount(account, token) {
   const perMedia = await Promise.all(
     worth.map(async (item) => {
       const reported = item.comments_count ?? 0
-      try {
-        let { kept, read } = await commentsOn(item, account, token)
-        let retried = null
+      const attempts = []
 
-        // Instagram says this post has comments and handed over none, without
-        // calling it an error. Try again asking for less before believing it.
-        if (read === 0 && reported > 0) {
-          const plain = await commentsOn(item, account, token, MINIMAL_FIELDS)
-          retried = plain.read
-          if (plain.read > 0) {
-            kept = plain.kept
-            read = plain.read
-          }
+      try {
+        let rows = []
+        for (const source of SOURCES) {
+          rows = await source.get(item, token)
+          attempts.push(`${source.name}:${rows.length}`)
+          // Stop at the first one that produced something, and do not try the
+          // others at all when the first already agrees with the post's count.
+          if (rows.length > 0 || rows.length >= reported) break
         }
 
-        return { comments: kept, read, reported, retried, id: item.id, error: null }
+        return {
+          comments: shape(rows, item, account),
+          read: rows.length,
+          reported,
+          attempts,
+          id: item.id,
+          error: null,
+        }
       } catch (error) {
         // One post failing must not empty the whole screen — a deleted post or
         // one with comments turned off answers with an error of its own.
         console.error(`Comments on ${item.id} failed:`, error.message)
-        return { comments: [], read: 0, reported, retried: null, id: item.id, error: error.message }
+        return { comments: [], read: 0, reported, attempts, id: item.id, error: error.message }
       }
     })
   )
@@ -156,7 +181,7 @@ export async function listForAccount(account, token) {
     // noise; the ones that do not are the whole question.
     mismatched: perMedia
       .filter((r) => !r.error && r.reported > r.read)
-      .map((r) => ({ id: r.id, reported: r.reported, read: r.read, retried: r.retried })),
+      .map((r) => ({ id: r.id, reported: r.reported, read: r.read, attempts: r.attempts })),
     failures,
   }
 }

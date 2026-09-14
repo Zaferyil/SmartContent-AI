@@ -360,10 +360,8 @@ export default function Inbox({ accounts = [], notify }) {
               <span className="mt-1.5 block font-mono text-[11px] leading-relaxed opacity-80">
                 {ch.mismatched.map((m) => (
                   <span key={m.id} className="block">
-                    {m.id} · {m.reported} → {m.read}
-                    {m.retried !== null && m.retried !== undefined
-                      ? ` · ${fill(c.retryLine, { n: m.retried })}`
-                      : ''}
+                    {m.id} · {fill(c.reportedRead, { reported: m.reported, read: m.read })}
+                    {m.attempts?.length ? ` · ${m.attempts.join(' ')}` : ''}
                   </span>
                 ))}
               </span>
