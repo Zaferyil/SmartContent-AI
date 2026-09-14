@@ -43,6 +43,7 @@ export const translations = {
       checkedLine: '@{username}: {n} Beiträge geprüft, {reported} Kommentare laut Instagram',
       channelWithheld:
         'Instagram zählt {reported} Kommentare auf den Beiträgen von @{username}, hat uns aber nur {read} davon gezeigt. Das deutet darauf hin, dass dem Token die Berechtigung „instagram_business_manage_comments“ fehlt — ein neu erzeugtes Token behebt das.',
+      retryLine: 'zweiter Versuch ohne Zusatzfelder: {n}',
       scopeNote: 'Zeigt Kommentare der letzten 10 Beiträge aus den letzten 45 Tagen.',
     },
 
@@ -436,6 +437,7 @@ export const translations = {
       checkedLine: '@{username}: {n} posts checked, {reported} comments according to Instagram',
       channelWithheld:
         'Instagram counts {reported} comments on @{username}’s posts but showed us only {read} of them. That usually means the token is missing the “instagram_business_manage_comments” permission — a freshly generated token fixes it.',
+      retryLine: 'retried without extra fields: {n}',
       scopeNote: 'Shows comments on the last 10 posts from the past 45 days.',
     },
 

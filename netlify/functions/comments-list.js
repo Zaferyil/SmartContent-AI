@@ -42,6 +42,8 @@ export const handler = async (event) => {
             posts: 0,
             checked: 0,
             reportedComments: 0,
+            readComments: 0,
+            mismatched: [],
             failures: [],
             error: error.message,
           }
@@ -61,6 +63,7 @@ export const handler = async (event) => {
         checked: r.checked,
         reportedComments: r.reportedComments,
         readComments: r.readComments,
+        mismatched: r.mismatched ?? [],
         // Instagram counts comments on these posts but handed us fewer than
         // that. Nothing else on this screen can tell that apart from a quiet
         // week. Compared against what the API returned, not against what is

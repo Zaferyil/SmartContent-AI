@@ -354,6 +354,20 @@ export default function Inbox({ accounts = [], notify }) {
               reported: ch.reportedComments,
               read: ch.readComments,
             })}
+            {/* Which posts disagree, and whether a plainer request got further.
+                Without it this is a symptom; with it, it points at one post. */}
+            {ch.mismatched?.length > 0 && (
+              <span className="mt-1.5 block font-mono text-[11px] leading-relaxed opacity-80">
+                {ch.mismatched.map((m) => (
+                  <span key={m.id} className="block">
+                    {m.id} · {m.reported} → {m.read}
+                    {m.retried !== null && m.retried !== undefined
+                      ? ` · ${fill(c.retryLine, { n: m.retried })}`
+                      : ''}
+                  </span>
+                ))}
+              </span>
+            )}
           </span>
         </p>
       ))}
