@@ -272,6 +272,7 @@ export default function Inbox({ accounts = [], notify }) {
   const brokenChannels = channels.filter((x) => x.error)
   const blockedChannels = channels.filter((x) => !x.error && x.allFailed)
   const emptyChannels = channels.filter((x) => !x.error && x.posts === 0)
+  const withholdingChannels = channels.filter((x) => !x.error && !x.allFailed && x.withheld)
 
   return (
     <div>
@@ -341,6 +342,22 @@ export default function Inbox({ accounts = [], notify }) {
         </p>
       ))}
 
+      {withholdingChannels.map((ch) => (
+        <p
+          key={ch.id}
+          className="mb-3 flex items-start gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-3.5 text-[13px] font-semibold text-amber-900"
+        >
+          <AlertTriangle size={15} strokeWidth={2.5} className="mt-px shrink-0" />
+          <span className="break-words">
+            {fill(c.channelWithheld, {
+              username: ch.username,
+              reported: ch.reportedComments,
+              read: ch.readComments,
+            })}
+          </span>
+        </p>
+      ))}
+
       {emptyChannels.map((ch) => (
         <p
           key={ch.id}
@@ -386,7 +403,13 @@ export default function Inbox({ accounts = [], notify }) {
         {channels.length > 0 && (
           <>
             {channels
-              .map((ch) => fill(c.checkedLine, { username: ch.username, n: ch.checked ?? 0 }))
+              .map((ch) =>
+                fill(c.checkedLine, {
+                  username: ch.username,
+                  n: ch.checked ?? 0,
+                  reported: ch.reportedComments ?? 0,
+                })
+              )
               .join(' · ')}
             <br />
           </>

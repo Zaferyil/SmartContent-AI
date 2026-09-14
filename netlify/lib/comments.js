@@ -38,7 +38,7 @@ async function commentsOn(media, account, token) {
     token,
   })
 
-  return data
+  const kept = data
     // Our own comments are not questions to answer.
     .filter((comment) => comment.username !== account.username)
     .map((comment) => {
@@ -68,6 +68,12 @@ async function commentsOn(media, account, token) {
         accountUsername: account.username,
       }
     })
+
+  // `read` is everything the API returned, before our own comments are dropped.
+  // Comparing that against Instagram's own count is what shows whether comments
+  // are being withheld; comparing the filtered list would count our own replies
+  // as missing.
+  return { kept, read: data.length }
 }
 
 /**
@@ -78,8 +84,15 @@ async function commentsOn(media, account, token) {
  * the budget before anything is rendered.
  */
 export async function listForAccount(account, token) {
+  // comments_count is Instagram's own count for the post. Asking for it costs
+  // nothing extra and settles the question the counts alone cannot: whether a
+  // post with no comments here has none at all, or has some this token is not
+  // being shown.
   const { data: media = [] } = await graph('me/media', {
-    params: { fields: 'id,caption,media_url,permalink,timestamp', limit: MAX_MEDIA },
+    params: {
+      fields: 'id,caption,media_url,permalink,timestamp,comments_count',
+      limit: MAX_MEDIA,
+    },
     token,
   })
 
@@ -88,12 +101,12 @@ export async function listForAccount(account, token) {
   const perMedia = await Promise.all(
     worth.map((item) =>
       commentsOn(item, account, token)
-        .then((comments) => ({ comments, error: null }))
+        .then(({ kept, read }) => ({ comments: kept, read, error: null }))
         .catch((error) => {
           // One post failing must not empty the whole screen — a deleted post
           // or one with comments turned off answers with an error of its own.
           console.error(`Comments on ${item.id} failed:`, error.message)
-          return { comments: [], error: error.message }
+          return { comments: [], read: 0, error: error.message }
         })
     )
   )
@@ -108,6 +121,11 @@ export async function listForAccount(account, token) {
     // nothing when the token was missing the comments permission.
     posts: media.length,
     checked: worth.length,
+    // What Instagram says is there, against what we managed to read. A gap
+    // between the two is the one thing that separates "nothing was written"
+    // from "we are not being shown it".
+    reportedComments: worth.reduce((sum, item) => sum + (item.comments_count ?? 0), 0),
+    readComments: perMedia.reduce((sum, r) => sum + r.read, 0),
     failures,
   }
 }

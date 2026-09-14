@@ -40,7 +40,9 @@ export const translations = {
       channelBlocked:
         'Bei @{username} wurden {n} Beiträge gefunden, aber Instagram hat die Kommentare zu jedem einzelnen abgelehnt. Meist fehlt dem Token die Berechtigung „instagram_business_manage_comments“ — dann hilft ein neu erzeugtes Token. Instagram sagt:',
       channelNoPosts: 'Bei @{username} wurden gar keine Beiträge gefunden.',
-      checkedLine: '@{username}: {n} Beiträge geprüft',
+      checkedLine: '@{username}: {n} Beiträge geprüft, {reported} Kommentare laut Instagram',
+      channelWithheld:
+        'Instagram zählt {reported} Kommentare auf den Beiträgen von @{username}, hat uns aber nur {read} davon gezeigt. Das deutet darauf hin, dass dem Token die Berechtigung „instagram_business_manage_comments“ fehlt — ein neu erzeugtes Token behebt das.',
       scopeNote: 'Zeigt Kommentare der letzten 10 Beiträge aus den letzten 45 Tagen.',
     },
 
@@ -431,7 +433,9 @@ export const translations = {
       channelBlocked:
         'Found {n} posts on @{username}, but Instagram refused the comments on every one of them. Usually the token is missing the “instagram_business_manage_comments” permission, in which case a freshly generated token fixes it. Instagram says:',
       channelNoPosts: 'No posts found at all on @{username}.',
-      checkedLine: '@{username}: {n} posts checked',
+      checkedLine: '@{username}: {n} posts checked, {reported} comments according to Instagram',
+      channelWithheld:
+        'Instagram counts {reported} comments on @{username}’s posts but showed us only {read} of them. That usually means the token is missing the “instagram_business_manage_comments” permission — a freshly generated token fixes it.',
       scopeNote: 'Shows comments on the last 10 posts from the past 45 days.',
     },
 

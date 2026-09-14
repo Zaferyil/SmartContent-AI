@@ -36,7 +36,15 @@ export const handler = async (event) => {
           return { account, ...found, error: null }
         } catch (error) {
           console.error(`Comments for ${account.username} failed:`, error.message)
-          return { account, comments: [], posts: 0, checked: 0, failures: [], error: error.message }
+          return {
+            account,
+            comments: [],
+            posts: 0,
+            checked: 0,
+            reportedComments: 0,
+            failures: [],
+            error: error.message,
+          }
         }
       })
     )
@@ -51,6 +59,13 @@ export const handler = async (event) => {
         unanswered: r.comments.filter((c) => !c.answered).length,
         posts: r.posts,
         checked: r.checked,
+        reportedComments: r.reportedComments,
+        readComments: r.readComments,
+        // Instagram counts comments on these posts but handed us fewer than
+        // that. Nothing else on this screen can tell that apart from a quiet
+        // week. Compared against what the API returned, not against what is
+        // shown, so our own replies are not mistaken for missing ones.
+        withheld: r.failures.length === 0 && r.reportedComments > r.readComments,
         // The first one is enough to act on, and they are almost always the
         // same message repeated once per post.
         readError: r.failures[0] ?? null,
