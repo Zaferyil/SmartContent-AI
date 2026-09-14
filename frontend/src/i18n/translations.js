@@ -38,6 +38,9 @@ export const translations = {
       toneLabel: 'Tonalität',
       topicLabel: 'Richtung vorgeben (optional)',
       topicPlaceholder: 'z. B. Anmeldung betonen, Konzentration hervorheben ...',
+      topicIsNotCaption:
+        'Nur ein Hinweis für die KI – nicht der Beitragstext. Den schreibst du unter „Erstellter Inhalt“.',
+      jumpToCaption: 'Dorthin springen',
       targetLabel: 'Zielkanäle',
       selectAll: 'Alle auswählen',
       selectOne: 'Nur einen',
@@ -388,6 +391,9 @@ export const translations = {
       toneLabel: 'Tone of voice',
       topicLabel: 'Steer the copy (optional)',
       topicPlaceholder: 'e.g. push sign-ups, highlight concentration ...',
+      topicIsNotCaption:
+        'Just a steer for the AI — not the post text. You write that under “Generated content”.',
+      jumpToCaption: 'Jump there',
       targetLabel: 'Target channels',
       selectAll: 'Select all',
       selectOne: 'Just one',

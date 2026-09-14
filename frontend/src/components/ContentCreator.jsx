@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Wand2,
   Copy,
@@ -51,6 +51,7 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
   const [postType, setPostType] = useState('FEED')
   const [accountIds, setAccountIds] = useState([])
   const [results, setResults] = useState(null)
+  const captionRef = useRef(null)
 
   // Default to the first connected account, and follow the list if it arrives
   // after this screen first rendered. Only the first, never all of them: the
@@ -243,14 +244,33 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             <label className="label" htmlFor="topic">
               {t.create.topicLabel}
             </label>
+            {/* Two rows, not four, and a line saying what this is not. At four
+                rows it is the biggest empty box on the way down the screen, and
+                the one place the caption panel is nowhere in sight on a narrow
+                layout — so it reads as the place to write the post, and the
+                copy typed here silently becomes a prompt instead. */}
             <textarea
               id="topic"
-              rows={4}
+              rows={2}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder={t.create.topicPlaceholder}
               className="field resize-y"
             />
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              {t.create.topicIsNotCaption}{' '}
+              {/* The caption box is half a screen further down on a phone, and
+                  saying where it is does not get anyone there. */}
+              <button
+                onClick={() => {
+                  captionRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                  captionRef.current?.focus({ preventScroll: true })
+                }}
+                className="font-extrabold text-brand-600 underline underline-offset-2 hover:text-brand-700"
+              >
+                {t.create.jumpToCaption}
+              </button>
+            </p>
           </div>
 
           <div>
@@ -385,6 +405,7 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
               </div>
             ) : (
               <textarea
+                ref={captionRef}
                 value={result}
                 onChange={(e) => setResult(e.target.value)}
                 disabled={busy}
