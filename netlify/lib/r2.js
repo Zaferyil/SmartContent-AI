@@ -1,4 +1,4 @@
-import { S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
 /**
  * The object store, in one place.
@@ -99,4 +99,21 @@ export function videoKeyFromUrl(url, publicBase) {
 
   const key = decodeURIComponent(candidate.pathname.slice(base.pathname.length))
   return KEY_PATTERN.test(key) ? key : null
+}
+
+/**
+ * Removes a video, given the public URL it was served from.
+ *
+ * Shared by the browser-driven endpoint and the cron, so "which files may be
+ * deleted" is decided once. Returns false rather than throwing when the URL is
+ * not ours: at every call site the post is already published, and a failure to
+ * tidy up is not a failure of the thing the user asked for.
+ */
+export async function deleteVideoByUrl(url) {
+  const config = requireConfig()
+  const key = videoKeyFromUrl(url, config.publicBase)
+  if (!key) return false
+
+  await makeClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
+  return true
 }

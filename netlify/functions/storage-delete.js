@@ -1,6 +1,5 @@
-import { DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { requireAuth } from '../lib/auth.js'
-import { makeClient, requireConfig, videoKeyFromUrl } from '../lib/r2.js'
+import { deleteVideoByUrl } from '../lib/r2.js'
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -34,8 +33,6 @@ export const handler = async (event) => {
   try {
     requireAuth(event)
 
-    const config = requireConfig()
-
     let body
     try {
       body = JSON.parse(event.body || '{}')
@@ -43,16 +40,11 @@ export const handler = async (event) => {
       return json(400, { error: 'Request body is not valid JSON' })
     }
 
-    const key = videoKeyFromUrl(body.url, config.publicBase)
-    if (!key) {
+    if (!(await deleteVideoByUrl(body.url))) {
       return json(400, { error: 'That is not the URL of a video this app uploaded' })
     }
 
-    await makeClient(config).send(
-      new DeleteObjectCommand({ Bucket: config.bucket, Key: key })
-    )
-
-    return json(200, { ok: true, key })
+    return json(200, { ok: true })
   } catch (error) {
     console.error('Storage delete failed:', error.message)
     return json(error.statusCode || 500, { ok: false, error: error.message })

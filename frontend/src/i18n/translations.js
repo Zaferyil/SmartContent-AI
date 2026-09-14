@@ -284,6 +284,8 @@ export const translations = {
         writeWithAi: 'Text mit KI schreiben',
         writing: 'KI schreibt …',
         needImage: 'Lade zuerst ein Bild hoch.',
+        reelStored:
+          'Das Video bleibt gespeichert, bis der Beitrag rausgeht — Instagram holt es erst zum geplanten Zeitpunkt. Danach wird es automatisch gelöscht.',
         needTime: 'Wähle Datum und Uhrzeit.',
         failedTitle: 'Veröffentlichung fehlgeschlagen',
         keepDraft: 'Als Entwurf speichern',
@@ -730,6 +732,8 @@ export const translations = {
         writeWithAi: 'Write caption with AI',
         writing: 'AI is writing …',
         needImage: 'Upload an image first.',
+        reelStored:
+          'The video stays stored until the post goes out — Instagram fetches it at the scheduled time, not now. It is deleted automatically afterwards.',
         needTime: 'Pick a date and time.',
         failedTitle: 'Publishing failed',
         keepDraft: 'Save as draft',

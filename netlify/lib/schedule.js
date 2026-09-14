@@ -27,8 +27,11 @@ const KEY = 'schedule'
  * @property {?string} accountId     which connected account publishes it; null
  *                                   falls back to the first on the platform
  * @property {string}  platform
- * @property {string}  postType      FEED | STORY
+ * @property {string}  postType      FEED | CAROUSEL | STORY | REELS
  * @property {?string} imageUrl
+ * @property {?string} videoUrl      a reel's video. The file stays in storage
+ *                                   until the post goes out, because Instagram
+ *                                   fetches it at publishing time, not now
  * @property {string}  caption
  * @property {string}  scheduledFor  ISO 8601 instant
  * @property {string}  status
@@ -65,6 +68,7 @@ function normalise(input, existing = null) {
     // A carousel's images, in the order they are swiped through. Empty for
     // every other post type, which carries its one image in imageUrl.
     imageUrls: [],
+    videoUrl: null,
     caption: '',
     scheduledFor: null,
     status: 'draft',
@@ -82,6 +86,7 @@ function normalise(input, existing = null) {
   if (input.postType !== undefined) next.postType = String(input.postType)
   if (input.caption !== undefined) next.caption = String(input.caption)
   if (input.imageUrl !== undefined) next.imageUrl = input.imageUrl || null
+  if (input.videoUrl !== undefined) next.videoUrl = input.videoUrl || null
   if (input.imageUrls !== undefined) {
     next.imageUrls = Array.isArray(input.imageUrls) ? input.imageUrls.filter(Boolean) : []
   }
@@ -123,6 +128,8 @@ function normalise(input, existing = null) {
       if (next.imageUrls.length > MAX_CAROUSEL) {
         throw badRequest(`A carousel takes at most ${MAX_CAROUSEL} images`)
       }
+    } else if (next.postType === 'REELS') {
+      if (!next.videoUrl) throw badRequest('A scheduled reel needs a video')
     } else if (!next.imageUrl) {
       throw badRequest('A scheduled post needs an image')
     }
@@ -154,10 +161,43 @@ export async function saveScheduled(inputs) {
   return saved
 }
 
+/**
+ * Removes items from the calendar.
+ *
+ * Reports what was taken out as well as what is left: a deleted reel leaves its
+ * video sitting in storage, and the caller cannot know which files to release
+ * without seeing the records that are about to disappear.
+ *
+ * @returns {Promise<{ items: ScheduledPost[], removed: ScheduledPost[] }>}
+ */
 export async function deleteScheduled(ids) {
   const gone = new Set(ids)
-  const next = await updateDoc(KEY, (items) => items.filter((item) => !gone.has(item.id)))
-  return next
+  const before = await listScheduled()
+  const items = await updateDoc(KEY, (list) => list.filter((item) => !gone.has(item.id)))
+  return { items, removed: before.filter((item) => gone.has(item.id)) }
+}
+
+/**
+ * Which of these videos nothing in the calendar refers to any more.
+ *
+ * A reel planned for two channels is two records holding one file, so the file
+ * outlives the first of them.
+ *
+ * Only a published record has finished with its video. A failed one has not:
+ * the error is shown so the user can put it back to 'scheduled' and try again,
+ * and a retry whose video was thrown away fails a second time with Instagram
+ * unable to fetch the media — which reads as Instagram's fault and is ours.
+ */
+export const NEEDS_ITS_VIDEO = (item) => item.status !== 'published'
+
+export function orphanedVideos(removed, remaining) {
+  const alive = new Set(
+    remaining.filter(NEEDS_ITS_VIDEO).map((item) => item.videoUrl).filter(Boolean)
+  )
+
+  return [...new Set(removed.map((item) => item.videoUrl).filter(Boolean))].filter(
+    (url) => !alive.has(url)
+  )
 }
 
 /**

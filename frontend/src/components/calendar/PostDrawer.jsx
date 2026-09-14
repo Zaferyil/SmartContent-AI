@@ -16,9 +16,10 @@ import { getPlatform } from '../../data/platforms'
 import { fromDateTimeInput, toDateInput, toTimeInput } from '../../utils/calendar'
 import { generateCaption } from '../../utils/generateCaption'
 import ImagePicker from '../ImagePicker'
+import VideoPicker from '../VideoPicker'
 import StatusChip from './StatusChip'
 
-const POST_TYPES = ['FEED', 'CAROUSEL', 'STORY']
+const POST_TYPES = ['FEED', 'CAROUSEL', 'STORY', 'REELS']
 const MAX_CAROUSEL = 10
 
 const hashtagsIn = (caption) => (caption ?? '').match(/#[\p{L}\p{N}_]+/gu) ?? []
@@ -55,6 +56,7 @@ export default function PostDrawer({
   const [postType, setPostType] = useState('FEED')
   const [imageUrl, setImageUrl] = useState(null)
   const [imageUrls, setImageUrls] = useState([])
+  const [videoUrl, setVideoUrl] = useState(null)
   const [caption, setCaption] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -81,6 +83,7 @@ export default function PostDrawer({
     setImageUrl(item.imageUrl ?? null)
     // Records written before carousels existed carry no imageUrls at all.
     setImageUrls(Array.isArray(item.imageUrls) ? item.imageUrls : [])
+    setVideoUrl(item.videoUrl ?? null)
     setCaption(item.caption ?? '')
     setDate(toDateInput(when))
     setTime(toTimeInput(when))
@@ -121,7 +124,7 @@ export default function PostDrawer({
    */
   const collect = (status) => {
     const when = fromDateTimeInput(date, time).toISOString()
-    const common = { postType, imageUrl, imageUrls, caption, scheduledFor: when, status }
+    const common = { postType, imageUrl, imageUrls, videoUrl, caption, scheduledFor: when, status }
 
     return accountIds.map((accountId, index) => ({
       // Only the first keeps this entry's id; the rest are new records. Reusing
@@ -135,6 +138,8 @@ export default function PostDrawer({
   }
 
   const write = async () => {
+    // The caption writer reads the image. A reel has none to read, so its copy
+    // is typed by hand — the button is not offered for one.
     if (!imageUrl) return notify(d.needImage, 'warn')
 
     setWriting(true)
@@ -153,14 +158,24 @@ export default function PostDrawer({
   }
 
   const isCarousel = postType === 'CAROUSEL'
+  const isReel = postType === 'REELS'
   const enoughImages = isCarousel ? imageUrls.length >= 2 : Boolean(imageUrl)
-  const hadMedia =
-    Boolean(item.imageUrl) || (Array.isArray(item.imageUrls) && item.imageUrls.length > 0)
+  const hasMedia = isReel ? Boolean(videoUrl) : enoughImages
+  const hadMedia = isReel
+    ? Boolean(item.videoUrl)
+    : Boolean(item.imageUrl) || (Array.isArray(item.imageUrls) && item.imageUrls.length > 0)
 
   const save = async (status) => {
     if (!date || !time) return notify(d.needTime, 'warn')
-    if (status === 'scheduled' && !enoughImages) {
-      return notify(isCarousel ? t.create.media.needTwoImages : d.needImage, 'warn')
+    if (status === 'scheduled' && !hasMedia) {
+      return notify(
+        isReel
+          ? t.create.video.needVideo
+          : isCarousel
+            ? t.create.media.needTwoImages
+            : d.needImage,
+        'warn'
+      )
     }
 
     setSaving(true)
@@ -369,7 +384,16 @@ export default function PostDrawer({
             <div>
               <span className="label">{live ? d.preview : d.media}</span>
               <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white/70">
-                {isCarousel ? (
+                {isReel ? (
+                  // Playable, so an entry planned days ago can be checked
+                  // before it goes out rather than after.
+                  <video
+                    src={videoUrl}
+                    controls
+                    playsInline
+                    className="max-h-56 w-full bg-slate-900 object-contain"
+                  />
+                ) : isCarousel ? (
                   // Numbered, because the order is what makes it a carousel
                   // rather than a pile of pictures.
                   <div className="grid grid-cols-3 gap-1.5 p-2">
@@ -400,6 +424,19 @@ export default function PostDrawer({
             </div>
           ) : live ? (
             <p className="text-xs font-semibold text-slate-400">{d.needImage}</p>
+          ) : isReel ? (
+            <div>
+              <VideoPicker
+                key={`${item.id ?? 'new'}-reel`}
+                onUploaded={setVideoUrl}
+                notify={notify}
+              />
+              {/* Said plainly, because it is the one thing about a planned reel
+                  that differs from a planned image: the file has to survive
+                  until the post goes out, since Instagram fetches it then and
+                  not now. */}
+              <p className="mt-2 text-xs font-semibold text-slate-400">{d.reelStored}</p>
+            </div>
           ) : (
             <ImagePicker
               key={`${item.id ?? 'new'}-${postType}`}
@@ -416,7 +453,7 @@ export default function PostDrawer({
           <div>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <span className="label !mb-0">{d.caption}</span>
-              {!live && (
+              {!live && !isReel && (
                 <button
                   onClick={write}
                   disabled={writing}

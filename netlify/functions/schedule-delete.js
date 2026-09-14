@@ -1,6 +1,7 @@
 import { json, CORS } from '../lib/instagram.js'
-import { deleteScheduled } from '../lib/schedule.js'
+import { deleteScheduled, orphanedVideos } from '../lib/schedule.js'
 import { requireAuth } from '../lib/auth.js'
+import { deleteVideoByUrl } from '../lib/r2.js'
 
 /**
  * Removes scheduled posts from the calendar.
@@ -27,7 +28,19 @@ export const handler = async (event) => {
     const ids = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : null
     if (!ids || ids.length === 0) return json(400, { error: 'Provide ids to delete' })
 
-    return json(200, { ok: true, items: await deleteScheduled(ids) })
+    const { items, removed } = await deleteScheduled(ids)
+
+    // A planned reel that is called off leaves its video behind and nothing
+    // will ever come back for it. Only the ones no remaining post still points
+    // at — one video can be planned to two channels. Tidying up must never be
+    // able to fail the delete the user actually asked for.
+    for (const url of orphanedVideos(removed, items)) {
+      await deleteVideoByUrl(url).catch((e) =>
+        console.error('Could not remove a cancelled reel from storage:', e.message)
+      )
+    }
+
+    return json(200, { ok: true, items })
   } catch (error) {
     console.error('Could not delete from the schedule:', error.message)
     return json(error.statusCode || 500, { ok: false, error: error.message })

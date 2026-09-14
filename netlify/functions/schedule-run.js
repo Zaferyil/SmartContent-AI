@@ -1,7 +1,14 @@
 import { json, CORS, createContainer, isContainerReady, publishContainer } from '../lib/instagram.js'
 import { resolveAccount } from '../lib/accounts.js'
-import { listScheduled, dueNow, patchScheduled, PUBLISHABLE_PLATFORMS } from '../lib/schedule.js'
+import {
+  listScheduled,
+  dueNow,
+  patchScheduled,
+  NEEDS_ITS_VIDEO,
+  PUBLISHABLE_PLATFORMS,
+} from '../lib/schedule.js'
 import { recordPublished } from '../lib/posts.js'
+import { deleteVideoByUrl } from '../lib/r2.js'
 
 /**
  * Publishes whatever is due. Declared as a scheduled function in netlify.toml.
@@ -48,12 +55,45 @@ async function finish(item, containerId, ctx) {
     accountId: ctx.id,
     // A carousel has no single image; the first one is what the reports show.
     imageUrl: item.imageUrl ?? item.imageUrls?.[0] ?? null,
+    videoUrl: item.videoUrl ?? null,
     caption: item.caption,
     postType: item.postType,
   }).catch((e) => console.error('Could not record the published post:', e.message))
 
   await patchScheduled(item.id, { status: 'published', mediaId, error: null })
+  await releaseVideo(item)
+
   return { id: item.id, state: 'published', mediaId }
+}
+
+/**
+ * Removes a published reel's video — but only once nothing else needs it.
+ *
+ * Scheduling a reel to two channels writes two items pointing at one file, and
+ * they rarely publish in the same run: two per run, five minutes apart. Deleting
+ * on the first one would pull the video out from under the second, which would
+ * then fail with Instagram unable to fetch the media — the kind of failure that
+ * looks like Instagram's fault and is entirely ours. A draft counts too, and so
+ * does a failed one: both are posts that may still be sent.
+ *
+ * Storage is housekeeping, so nothing here is allowed to turn a published post
+ * into a failed run.
+ */
+async function releaseVideo(item) {
+  if (item.postType !== 'REELS' || !item.videoUrl) return
+
+  try {
+    const others = await listScheduled()
+    const stillNeeded = others.some(
+      (other) =>
+        other.id !== item.id && other.videoUrl === item.videoUrl && NEEDS_ITS_VIDEO(other)
+    )
+    if (stillNeeded) return
+
+    await deleteVideoByUrl(item.videoUrl)
+  } catch (error) {
+    console.error('Could not remove the published reel from storage:', error.message)
+  }
 }
 
 async function advance(item) {
@@ -70,12 +110,10 @@ async function advance(item) {
   }
 
   const containerId = await createContainer(
-    // No videoUrl: a scheduled post does not carry one yet, so REELS and VIDEO
-    // cannot be scheduled. Adding the field here without the store that holds
-    // it would only move the failure somewhere less obvious.
     {
       imageUrl: item.imageUrl,
       imageUrls: item.imageUrls,
+      videoUrl: item.videoUrl,
       caption: item.caption,
       postType: item.postType,
     },
