@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { fetchComments, replyToComment } from '../utils/comments'
+import Conversations from './inbox/Conversations'
 import ScreenHeader from './ScreenHeader'
 
 const fill = (template, vars) =>
@@ -189,6 +190,10 @@ export default function Inbox({ accounts = [], notify }) {
 
   const [data, setData] = useState(null)
   const [channel, setChannel] = useState('all')
+  // Comments and direct messages are the same job — answering people — so they
+  // share a tab rather than claiming a seventh one the phone has no room for.
+  const [section, setSection] = useState('comments')
+  const [dmWaiting, setDmWaiting] = useState(0)
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -252,19 +257,7 @@ export default function Inbox({ accounts = [], notify }) {
     </div>
   )
 
-  if (!data) {
-    return (
-      <div>
-        {header}
-        <div className="card flex items-center justify-center gap-3 p-10 text-slate-400">
-          <Loader2 size={20} className="animate-spin" strokeWidth={2.5} />
-          <span className="font-semibold">{c.loading}</span>
-        </div>
-      </div>
-    )
-  }
-
-  const channels = data.channels ?? []
+  const channels = data?.channels ?? []
   // Three different "nothing here" states, kept apart. The account could not be
   // read at all; its posts were read but every one of them refused its comments
   // — which is what a missing comments permission looks like; or there really
@@ -274,9 +267,81 @@ export default function Inbox({ accounts = [], notify }) {
   const emptyChannels = channels.filter((x) => !x.error && x.posts === 0)
   const withholdingChannels = channels.filter((x) => !x.error && !x.allFailed && x.withheld)
 
+  const segments = [
+    { id: 'comments', label: c.tabComments, open: comments.filter((x) => !x.answered).length },
+    { id: 'messages', label: c.tabMessages, open: dmWaiting },
+  ]
+
   return (
     <div>
       {header}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {segments.map((segment) => {
+          const active = section === segment.id
+          return (
+            <button
+              key={segment.id}
+              onClick={() => setSection(segment.id)}
+              aria-pressed={active}
+              className={`chip border-2 transition-all ${
+                active
+                  ? 'border-brand-500 bg-brand-50 text-brand-700'
+                  : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
+              }`}
+            >
+              {segment.label}
+              {segment.open > 0 && (
+                <span className="ml-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber-500 px-1 text-[10px] font-extrabold text-white">
+                  {segment.open}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {accounts.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {[{ id: 'all', username: c.allChannels }, ...accounts].map((account) => {
+            const active = channel === account.id
+            return (
+              <button
+                key={account.id}
+                onClick={() => setChannel(account.id)}
+                aria-pressed={active}
+                className={`chip border-2 transition-all ${
+                  active
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
+                }`}
+              >
+                {account.id === 'all' ? account.username : `@${account.username}`}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {section === 'messages' && (
+        <Conversations
+          accounts={accounts}
+          channel={channel}
+          ago={ago}
+          notify={notify}
+          onCount={setDmWaiting}
+        />
+      )}
+
+      {section === 'comments' && !data && (
+        <div className="card flex items-center justify-center gap-3 p-10 text-slate-400">
+          <Loader2 size={20} className="animate-spin" strokeWidth={2.5} />
+          <span className="font-semibold">{c.loading}</span>
+        </div>
+      )}
+
+      {section === 'comments' && data && (
+        <>
 
       {error && (
         <p className="mb-4 flex items-start gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
@@ -296,86 +361,6 @@ export default function Inbox({ accounts = [], notify }) {
           <span className="break-words">
             {fill(c.channelFailed, { username: ch.username })} {ch.error}
           </span>
-        </p>
-      ))}
-
-      {accounts.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {[{ id: 'all', username: c.allChannels }, ...accounts].map((account) => {
-            const active = channel === account.id
-            const open =
-              account.id === 'all'
-                ? comments.filter((x) => !x.answered).length
-                : comments.filter((x) => x.accountId === account.id && !x.answered).length
-            return (
-              <button
-                key={account.id}
-                onClick={() => setChannel(account.id)}
-                aria-pressed={active}
-                className={`chip border-2 transition-all ${
-                  active
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
-                }`}
-              >
-                {account.id === 'all' ? account.username : `@${account.username}`}
-                {open > 0 && (
-                  <span className="ml-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber-500 px-1 text-[10px] font-extrabold text-white">
-                    {open}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {blockedChannels.map((ch) => (
-        <p
-          key={ch.id}
-          className="mb-3 flex items-start gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-3.5 text-[13px] font-semibold text-rose-900"
-        >
-          <AlertTriangle size={15} strokeWidth={2.5} className="mt-px shrink-0" />
-          <span className="break-words">
-            {fill(c.channelBlocked, { username: ch.username, n: ch.checked })} {ch.readError}
-          </span>
-        </p>
-      ))}
-
-      {withholdingChannels.map((ch) => (
-        <p
-          key={ch.id}
-          className="mb-3 flex items-start gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-3.5 text-[13px] font-semibold text-amber-900"
-        >
-          <AlertTriangle size={15} strokeWidth={2.5} className="mt-px shrink-0" />
-          <span className="break-words">
-            {fill(c.channelWithheld, {
-              username: ch.username,
-              reported: ch.reportedComments,
-              read: ch.readComments,
-            })}
-            {/* Which posts disagree, and whether a plainer request got further.
-                Without it this is a symptom; with it, it points at one post. */}
-            {ch.mismatched?.length > 0 && (
-              <span className="mt-1.5 block font-mono text-[11px] leading-relaxed opacity-80">
-                {ch.mismatched.map((m) => (
-                  <span key={m.id} className="block">
-                    {m.id} · {fill(c.reportedRead, { reported: m.reported, read: m.read })}
-                    {m.attempts?.length ? ` · ${m.attempts.join(' ')}` : ''}
-                  </span>
-                ))}
-              </span>
-            )}
-          </span>
-        </p>
-      ))}
-
-      {emptyChannels.map((ch) => (
-        <p
-          key={ch.id}
-          className="mb-3 rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 p-3.5 text-[13px] font-semibold text-slate-500"
-        >
-          {fill(c.channelNoPosts, { username: ch.username })}
         </p>
       ))}
 
@@ -428,6 +413,8 @@ export default function Inbox({ accounts = [], notify }) {
         )}
         {c.scopeNote}
       </p>
+        </>
+      )}
     </div>
   )
 }
