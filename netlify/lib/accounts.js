@@ -146,16 +146,31 @@ export async function listAccounts() {
 /**
  * The credentials to act with.
  *
- * Falls back to the first account on the platform when an id is missing, which
- * is what a post recorded before accounts existed looks like.
+ * A named channel is either found or refused. It used to fall through to the
+ * first account on the platform, which is fine for a post that named nothing
+ * but wrong for one that named a channel we no longer have: disconnecting and
+ * reconnecting a channel gives it a new id, so every post already assigned to
+ * it would have gone out under whichever account happened to be first — in
+ * front of that account's followers, with no way to take it back. A post that
+ * visibly fails can be fixed; one published to the wrong audience cannot.
  */
 export async function resolveAccount(accountId, platform = 'instagram') {
   const accounts = await allAccounts()
 
-  const account =
-    (accountId && accounts.find((a) => a.id === accountId)) ||
-    accounts.find((a) => a.platform === platform)
+  if (accountId) {
+    const named = accounts.find((a) => a.id === accountId)
+    if (!named) {
+      throw fail(
+        400,
+        'The channel this post was assigned to is no longer connected. Open the post and choose a channel again.'
+      )
+    }
+    return { id: named.id, token: named.token, userId: named.externalId, account: named }
+  }
 
+  // Nothing named: a single-account setup has only one answer, and this is how
+  // a post recorded before accounts existed still publishes.
+  const account = accounts.find((a) => a.platform === platform)
   if (!account) {
     throw fail(400, `No ${platform} account is connected. Add one under Channels.`)
   }
