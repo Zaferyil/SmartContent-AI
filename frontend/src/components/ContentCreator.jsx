@@ -362,24 +362,36 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             )}
           </div>
 
-          <div className="min-h-[260px] flex-1 rounded-2xl border-2 border-slate-100 bg-white/60 p-4 sm:min-h-[320px]">
-            {result ? (
-              <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-slate-700">
-                {result}
-              </p>
-            ) : (
-              <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+          {/*
+            Editable, not a read-only panel. The AI was the only way to fill
+            this, so anyone who already knew what to write had to have something
+            written for them first and could not correct a word of it. Typing
+            here is now the other half of the same box: write your own, or press
+            the button and edit what comes back.
+
+            A story keeps the plain message — Instagram discards the caption, so
+            there is nothing to type.
+          */}
+          <div className="flex min-h-[260px] flex-1 rounded-2xl border-2 border-slate-100 bg-white/60 p-4 sm:min-h-[320px]">
+            {isStory ? (
+              <div className="flex w-full flex-col items-center justify-center gap-3 text-center">
                 <span
                   className="grid h-14 w-14 place-items-center rounded-2xl text-white opacity-90"
                   style={{ backgroundImage: 'var(--grad-brand)' }}
                 >
                   <Wand2 size={24} strokeWidth={2.5} />
                 </span>
-                {/* The usual prompt points at a button a story has disabled. */}
-                <p className="max-w-xs text-sm text-slate-400">
-                  {isStory ? t.create.storyNothingToWrite : t.create.emptyResult}
-                </p>
+                <p className="max-w-xs text-sm text-slate-400">{t.create.storyNothingToWrite}</p>
               </div>
+            ) : (
+              <textarea
+                value={result}
+                onChange={(e) => setResult(e.target.value)}
+                disabled={busy}
+                placeholder={t.create.resultPlaceholder}
+                aria-label={t.create.resultLabel}
+                className="w-full flex-1 resize-none bg-transparent text-[15px] leading-relaxed text-slate-700 outline-none placeholder:text-slate-400 disabled:opacity-60"
+              />
             )}
           </div>
 

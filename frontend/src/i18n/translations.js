@@ -45,7 +45,8 @@ export const translations = {
       generate: 'Inhalt erstellen',
       generating: 'Wird erstellt...',
       resultLabel: 'Erstellter Inhalt',
-      emptyResult: 'Noch kein Text erstellt. Lade ein Bild hoch und klicke auf „Inhalt erstellen“ — die KI schreibt passend zum Bild.',
+      resultPlaceholder:
+        'Schreib deinen Text hier – oder lade ein Bild hoch und klicke auf „Inhalt erstellen“, damit die KI ihn schreibt. Du kannst das Ergebnis danach frei bearbeiten.',
       copy: 'Kopieren',
       copied: 'Kopiert',
       regenerate: 'Neu erstellen',
@@ -394,7 +395,8 @@ export const translations = {
       generate: 'Generate content',
       generating: 'Generating...',
       resultLabel: 'Generated content',
-      emptyResult: 'Nothing written yet. Upload an image and hit “Generate content” — the AI writes from the picture.',
+      resultPlaceholder:
+        'Write your copy here — or upload an image and hit “Generate content” to have the AI write it. You can edit whatever comes back.',
       copy: 'Copy',
       copied: 'Copied',
       regenerate: 'Regenerate',
