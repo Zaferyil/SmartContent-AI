@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { requireAuth } from '../lib/auth.js'
+import { makeClient, requireConfig } from '../lib/r2.js'
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -34,50 +35,6 @@ const DEFAULT_TYPE = 'image/jpeg'
 // seconds — and the URL has to still be valid when the last byte lands.
 const URL_TTL_SECONDS = 300
 const VIDEO_URL_TTL_SECONDS = 3600
-
-const CONFIG_VARS = {
-  accountId: 'R2_ACCOUNT_ID',
-  accessKeyId: 'R2_ACCESS_KEY_ID',
-  secretAccessKey: 'R2_SECRET_ACCESS_KEY',
-  bucket: 'R2_BUCKET',
-  publicBase: 'R2_PUBLIC_BASE_URL',
-}
-
-// A Cloudflare account id is a 32-character hex string. Anything else — most
-// easily the bucket name, which sits right next to it in the R2 dashboard —
-// builds a hostname that does not resolve. The browser then reports a bare
-// "Failed to fetch", indistinguishable from a CORS rejection, and the real
-// cause is invisible. Catching it here names the variable instead.
-const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i
-
-function requireConfig() {
-  const config = {}
-  const missing = []
-
-  for (const [field, envName] of Object.entries(CONFIG_VARS)) {
-    const value = process.env[envName]?.trim()
-    if (value) config[field] = value
-    else missing.push(envName)
-  }
-
-  if (missing.length) {
-    const error = new Error(`Missing environment variables: ${missing.join(', ')}`)
-    error.statusCode = 500
-    throw error
-  }
-
-  if (!ACCOUNT_ID_PATTERN.test(config.accountId)) {
-    const error = new Error(
-      `${CONFIG_VARS.accountId} does not look like a Cloudflare account id ` +
-        '(expected 32 hex characters). Copy it from the R2 overview page — ' +
-        'it is not the bucket name.'
-    )
-    error.statusCode = 500
-    throw error
-  }
-
-  return config
-}
 
 /**
  * Hands the browser a short-lived presigned PUT URL so the file goes straight
@@ -136,23 +93,8 @@ export const handler = async (event) => {
 
     const ttl = contentType.startsWith('video/') ? VIDEO_URL_TTL_SECONDS : URL_TTL_SECONDS
 
-    const client = new S3Client({
-      region: 'auto',
-      endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-      // Since v3.729 the SDK adds a CRC32 checksum by default. While presigning
-      // there is no body, so it signs the checksum of an *empty* payload — the
-      // browser's real upload then fails the integrity check. R2 does not
-      // require these checksums, so turn them off.
-      requestChecksumCalculation: 'WHEN_REQUIRED',
-      responseChecksumValidation: 'WHEN_REQUIRED',
-    })
-
     const uploadUrl = await getSignedUrl(
-      client,
+      makeClient(config),
       new PutObjectCommand({
         Bucket: config.bucket,
         Key: key,

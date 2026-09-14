@@ -27,6 +27,26 @@ export async function uploadToStorage(blob, { contentType = 'image/jpeg', onProg
 }
 
 /**
+ * Removes a video from storage once every channel has published it.
+ *
+ * Deliberately not a failure worth showing. By the time this runs the post is
+ * live on Instagram, which is the thing the user asked for; a file left behind
+ * costs a few megabytes of a 10 GB allowance and nothing else. Turning that
+ * into an error message on a successful publish would be the app reporting its
+ * own housekeeping as the user's problem.
+ */
+export async function deleteStoredVideo(url) {
+  if (!url) return false
+  try {
+    await api('storage-delete', { body: { url } })
+    return true
+  } catch (error) {
+    console.warn('Could not remove the video from storage:', error.message)
+    return false
+  }
+}
+
+/**
  * The browser reports a blocked cross-origin request and a host that does not
  * exist the same way: a bare error with nothing in it. The one thing that
  * separates them is where the upload was being sent — a wrong or truncated R2

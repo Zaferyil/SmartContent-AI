@@ -18,6 +18,7 @@ import { getPlatform } from '../data/platforms'
 import { generateCaption } from '../utils/generateCaption'
 import { publishPost } from '../utils/publishPost'
 import { fanOut, outcome } from '../utils/fanOut'
+import { deleteStoredVideo } from '../utils/storage'
 import { fetchSchedule, saveScheduled } from '../utils/schedule'
 import { atTime, addDays } from '../utils/calendar'
 import ScreenHeader from './ScreenHeader'
@@ -64,6 +65,10 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   const [accountIds, setAccountIds] = useState([])
   const [results, setResults] = useState(null)
   const [savingDraft, setSavingDraft] = useState(false)
+  // Bumped to start the video picker over once its reel is out and its file is
+  // gone. The picker owns its preview, so clearing videoUrl alone would leave a
+  // video on screen whose bytes no longer exist anywhere.
+  const [reelRound, setReelRound] = useState(0)
   const captionRef = useRef(null)
 
   // Default to the first connected account, and follow the list if it arrives
@@ -179,6 +184,22 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
           { onProgress: () => setWaiting(true) }
         )
       )
+
+      /*
+        The video has done its job once every channel has it: Instagram fetched
+        it and serves its own copy from here on, so keeping ours only fills a
+        10 GB bucket with the one kind of file big enough to fill it.
+
+        Only when every channel succeeded. The channels publish one after
+        another and they share this one URL — deleting after a partial run would
+        take the video away from the retry, and a failed channel is exactly when
+        the user presses publish again.
+      */
+      if (isReel && outcome(done) === 'all') {
+        await deleteStoredVideo(videoUrl)
+        setVideoUrl(null)
+        setReelRound((n) => n + 1)
+      }
 
       // A single channel keeps the plain message it always had; the breakdown
       // would be a list of one, which reads as though something went wrong.
@@ -303,7 +324,10 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
           </div>
 
           {isReel ? (
-            <VideoPicker onUploaded={setVideoUrl} notify={notify} />
+            /* Keyed on the round: once a reel is out its file is deleted, so the
+               picker has to start over rather than keep showing a preview of
+               bytes that no longer exist. */
+            <VideoPicker key={`reel-${reelRound}`} onUploaded={setVideoUrl} notify={notify} />
           ) : (
             /* Keyed on the post type: switching between one image and ten has to
                start the picker over, or the leftovers of the other mode linger. */
