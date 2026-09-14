@@ -96,11 +96,15 @@ export async function writeCaption({
   }
 
   // A story carries no caption field, so this text is meant to go on the image
-  // itself — read in a couple of seconds, not scrolled through.
+  // itself — read in a couple of seconds, not scrolled through. A carousel is a
+  // feed caption, but written for someone who has only seen the first image and
+  // is deciding whether to swipe.
   const lengthRule =
     postType === 'STORY'
       ? 'This is an Instagram Story, so the text sits on the image itself. Keep it to at most two short lines.'
-      : `This is a feed post. Stay under ${MAX_CAPTION} characters.`
+      : postType === 'CAROUSEL'
+        ? `This is a carousel. The reader has seen only the first image and is deciding whether to swipe, so open with a line that makes the rest worth swiping through, and never write about the later images as though they had already been seen. Stay under ${MAX_CAPTION} characters.`
+        : `This is a feed post. Stay under ${MAX_CAPTION} characters.`
 
   const steer = topic.trim()
     ? `\n\nThe person posting wants the copy to lean towards: ${topic.trim()}`

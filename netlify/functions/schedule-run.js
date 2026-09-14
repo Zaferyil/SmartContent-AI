@@ -46,7 +46,8 @@ async function finish(item, containerId, ctx) {
   await recordPublished({
     mediaId,
     accountId: ctx.id,
-    imageUrl: item.imageUrl,
+    // A carousel has no single image; the first one is what the reports show.
+    imageUrl: item.imageUrl ?? item.imageUrls?.[0] ?? null,
     caption: item.caption,
     postType: item.postType,
   }).catch((e) => console.error('Could not record the published post:', e.message))
@@ -72,7 +73,12 @@ async function advance(item) {
     // No videoUrl: a scheduled post does not carry one yet, so REELS and VIDEO
     // cannot be scheduled. Adding the field here without the store that holds
     // it would only move the failure somewhere less obvious.
-    { imageUrl: item.imageUrl, caption: item.caption, postType: item.postType },
+    {
+      imageUrl: item.imageUrl,
+      imageUrls: item.imageUrls,
+      caption: item.caption,
+      postType: item.postType,
+    },
     ctx
   )
 

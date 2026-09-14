@@ -8,6 +8,7 @@ import {
   Loader2,
   Send,
   Image,
+  Album,
   Clock,
   Film,
   AlertTriangle,
@@ -25,9 +26,13 @@ import ChannelResults from './ChannelResults'
 // it is shown but not selectable until the background function exists.
 const POST_TYPES = [
   { id: 'FEED', icon: Image, ready: true },
+  { id: 'CAROUSEL', icon: Album, ready: true },
   { id: 'STORY', icon: Clock, ready: true },
   { id: 'REELS', icon: Film, ready: false },
 ]
+
+// Meta's ceiling for a carousel.
+const MAX_CAROUSEL = 10
 
 const FORMATS = ['caption', 'hashtags', 'hook', 'cta', 'thread']
 const TONES = ['friendly', 'professional', 'playful', 'bold']
@@ -45,7 +50,9 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
   const [result, setResult] = useState('')
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [imageUrl, setImageUrl] = useState(null)
+  // Always a list, whatever the post type — the picker reports one shape and
+  // the carousel is the only type that reads past the first entry.
+  const [imageUrls, setImageUrls] = useState([])
   const [publishing, setPublishing] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [postType, setPostType] = useState('FEED')
@@ -83,10 +90,18 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
   // once copy existed, which left a story with an uploaded image and no way to
   // send it.
   const isStory = postType === 'STORY'
-  const canPublish = Boolean(imageUrl) && (isStory || Boolean(result))
+  const isCarousel = postType === 'CAROUSEL'
+  const imageUrl = imageUrls[0] ?? null
+
+  // A carousel of one is a feed post, so Instagram refuses it. Catching it here
+  // keeps the button from offering work that cannot succeed.
+  const enoughImages = isCarousel ? imageUrls.length >= 2 : Boolean(imageUrl)
+  const canPublish = enoughImages && (isStory || Boolean(result))
 
   const run = async () => {
-    // The copy is written from the image, so there is nothing to write without one.
+    // The copy is written from the image, so there is nothing to write without
+    // one. For a carousel that is the first image — the one people see before
+    // they decide whether to swipe.
     if (!imageUrl) return notify(t.create.media.needImage, 'warn')
     if (selected.length === 0) return notify(t.create.needPlatform, 'warn')
 
@@ -108,7 +123,9 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
   }
 
   const publish = async () => {
-    if (!imageUrl) return notify(t.create.media.needImage, 'warn')
+    if (!enoughImages) {
+      return notify(isCarousel ? t.create.media.needTwoImages : t.create.media.needImage, 'warn')
+    }
     if (targets.length === 0) return notify(t.create.needPlatform, 'warn')
 
     setPublishing(true)
@@ -117,9 +134,15 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
     try {
       const done = await fanOut(targets, (account) =>
         publishPost(
-          // Nothing for a story: Instagram ignores the field, and sending copy
-          // it will not show would only make the record claim otherwise.
-          { imageUrl, caption: isStory ? '' : result, postType, accountId: account.id },
+          {
+            imageUrl,
+            imageUrls,
+            // Nothing for a story: Instagram ignores the field, and sending copy
+            // it will not show would only make the record claim otherwise.
+            caption: isStory ? '' : result,
+            postType,
+            accountId: account.id,
+          },
           { onProgress: () => setWaiting(true) }
         )
       )
@@ -163,7 +186,8 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
         <div className="card space-y-5 p-5 sm:p-6 lg:col-span-2">
           <div>
             <span className="label">{t.create.postTypeLabel}</span>
-            <div className="grid grid-cols-3 gap-2">
+            {/* Four types now: two columns on a phone, one row from sm up. */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {POST_TYPES.map(({ id, icon: Icon, ready }) => {
                 const active = postType === id
                 return (
@@ -193,7 +217,14 @@ export default function ContentCreator({ selected, accounts = [], notify }) {
             )}
           </div>
 
-          <ImagePicker onUploaded={setImageUrl} notify={notify} />
+          {/* Keyed on the post type: switching between one image and ten has to
+              start the picker over, or the leftovers of the other mode linger. */}
+          <ImagePicker
+            key={isCarousel ? 'many' : 'one'}
+            max={isCarousel ? MAX_CAROUSEL : 1}
+            onUploaded={setImageUrls}
+            notify={notify}
+          />
 
           <div>
             <span className="label">{t.create.formatLabel}</span>

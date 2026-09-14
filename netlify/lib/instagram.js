@@ -88,11 +88,65 @@ const MAX_CAPTION = 2200
 export const POST_TYPES = {
   FEED: { mediaType: null, needsVideo: false, caption: true },
   STORY: { mediaType: 'STORIES', needsVideo: false, caption: false },
+  CAROUSEL: { mediaType: 'CAROUSEL', needsVideo: false, caption: true, many: true },
   REELS: { mediaType: 'REELS', needsVideo: true, caption: true },
   VIDEO: { mediaType: 'VIDEO', needsVideo: true, caption: true },
 }
 
+/** Meta's ceiling. A carousel of one is a feed post, so two is our floor. */
+export const MAX_CAROUSEL = 10
+export const MIN_CAROUSEL = 2
+
 const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 })
+
+const requireHttps = (url) => {
+  // Instagram fetches this itself, so localhost and auth-gated URLs cannot work.
+  if (!/^https:\/\//i.test(url ?? '')) throw badRequest('Media URL must be publicly reachable over HTTPS')
+}
+
+/**
+ * A carousel, which is three rounds of work rather than one.
+ *
+ * Each image becomes its own container marked `is_carousel_item`, and a parent
+ * container ties them together in order. The children are created at once
+ * rather than in sequence: ten of them one after another is ten round trips to
+ * Meta, which on the browser-driven path would spend the whole function budget
+ * before the parent is even asked for.
+ *
+ * @returns {Promise<string>} the parent container id
+ */
+async function createCarousel({ imageUrls, caption }, ctx) {
+  if (!Array.isArray(imageUrls) || imageUrls.length < MIN_CAROUSEL) {
+    throw badRequest(`A carousel needs at least ${MIN_CAROUSEL} images`)
+  }
+  if (imageUrls.length > MAX_CAROUSEL) {
+    throw badRequest(`A carousel takes at most ${MAX_CAROUSEL} images`)
+  }
+  imageUrls.forEach(requireHttps)
+
+  const children = await Promise.all(
+    imageUrls.map((imageUrl) =>
+      graph(`${ctx.userId}/media`, {
+        method: 'POST',
+        params: { image_url: imageUrl, is_carousel_item: true },
+        token: ctx.token,
+      })
+    )
+  )
+
+  const parent = await graph(`${ctx.userId}/media`, {
+    method: 'POST',
+    params: {
+      media_type: 'CAROUSEL',
+      // Order matters: it is the order they are swiped through.
+      children: children.map((child) => child.id).join(','),
+      caption,
+    },
+    token: ctx.token,
+  })
+
+  return parent.id
+}
 
 /**
  * First half of the two-step publish: hands Instagram the media to fetch.
@@ -103,7 +157,10 @@ const badRequest = (message) => Object.assign(new Error(message), { statusCode: 
  *
  * @returns {Promise<string>} the container id
  */
-export async function createContainer({ imageUrl, videoUrl, caption = '', postType }, ctx) {
+export async function createContainer(
+  { imageUrl, imageUrls, videoUrl, caption = '', postType },
+  ctx
+) {
   const spec = POST_TYPES[postType]
   if (!spec) {
     throw badRequest(
@@ -111,17 +168,19 @@ export async function createContainer({ imageUrl, videoUrl, caption = '', postTy
     )
   }
 
+  if (spec.caption && caption.length > MAX_CAPTION) {
+    throw badRequest(`Caption exceeds the ${MAX_CAPTION} character limit`)
+  }
+
+  // Handled here rather than by the caller, so the cron and the browser cannot
+  // drift on how a carousel is built.
+  if (spec.many) return createCarousel({ imageUrls, caption }, ctx)
+
   const mediaUrl = spec.needsVideo ? videoUrl : imageUrl
   if (!mediaUrl) {
     throw badRequest(spec.needsVideo ? `${postType} needs a videoUrl` : `${postType} needs an imageUrl`)
   }
-  // Instagram fetches this itself, so localhost and auth-gated URLs cannot work.
-  if (!/^https:\/\//i.test(mediaUrl)) {
-    throw badRequest('Media URL must be publicly reachable over HTTPS')
-  }
-  if (spec.caption && caption.length > MAX_CAPTION) {
-    throw badRequest(`Caption exceeds the ${MAX_CAPTION} character limit`)
-  }
+  requireHttps(mediaUrl)
 
   const params = spec.needsVideo ? { video_url: videoUrl } : { image_url: imageUrl }
   if (spec.mediaType) params.media_type = spec.mediaType

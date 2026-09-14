@@ -18,7 +18,8 @@ import { generateCaption } from '../../utils/generateCaption'
 import ImagePicker from '../ImagePicker'
 import StatusChip from './StatusChip'
 
-const POST_TYPES = ['FEED', 'STORY']
+const POST_TYPES = ['FEED', 'CAROUSEL', 'STORY']
+const MAX_CAROUSEL = 10
 
 const hashtagsIn = (caption) => (caption ?? '').match(/#[\p{L}\p{N}_]+/gu) ?? []
 
@@ -53,6 +54,7 @@ export default function PostDrawer({
   const [platform, setPlatform] = useState('instagram')
   const [postType, setPostType] = useState('FEED')
   const [imageUrl, setImageUrl] = useState(null)
+  const [imageUrls, setImageUrls] = useState([])
   const [caption, setCaption] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -77,6 +79,8 @@ export default function PostDrawer({
     setPlatform(item.platform ?? 'instagram')
     setPostType(item.postType ?? 'FEED')
     setImageUrl(item.imageUrl ?? null)
+    // Records written before carousels existed carry no imageUrls at all.
+    setImageUrls(Array.isArray(item.imageUrls) ? item.imageUrls : [])
     setCaption(item.caption ?? '')
     setDate(toDateInput(when))
     setTime(toTimeInput(when))
@@ -117,7 +121,7 @@ export default function PostDrawer({
    */
   const collect = (status) => {
     const when = fromDateTimeInput(date, time).toISOString()
-    const common = { postType, imageUrl, caption, scheduledFor: when, status }
+    const common = { postType, imageUrl, imageUrls, caption, scheduledFor: when, status }
 
     return accountIds.map((accountId, index) => ({
       // Only the first keeps this entry's id; the rest are new records. Reusing
@@ -148,9 +152,16 @@ export default function PostDrawer({
     }
   }
 
+  const isCarousel = postType === 'CAROUSEL'
+  const enoughImages = isCarousel ? imageUrls.length >= 2 : Boolean(imageUrl)
+  const hadMedia =
+    Boolean(item.imageUrl) || (Array.isArray(item.imageUrls) && item.imageUrls.length > 0)
+
   const save = async (status) => {
     if (!date || !time) return notify(d.needTime, 'warn')
-    if (status === 'scheduled' && !imageUrl) return notify(d.needImage, 'warn')
+    if (status === 'scheduled' && !enoughImages) {
+      return notify(isCarousel ? t.create.media.needTwoImages : d.needImage, 'warn')
+    }
 
     setSaving(true)
     try {
@@ -346,15 +357,35 @@ export default function PostDrawer({
           {/* An entry that already has an image shows it. The uploader only
               previews a file picked in this session, so without this an edit
               would look as though the image had been lost. */}
-          {imageUrl && !replacing ? (
+          {/*
+            Keyed on what the entry arrived with, never on what has been picked
+            since. Reading current state here swapped the picker out for a
+            preview the moment the first upload landed — which for a carousel
+            unmounted the picker halfway through the batch and the rest of the
+            images were never uploaded. The picker shows its own thumbnails, so
+            there is nothing to swap to anyway.
+          */}
+          {hadMedia && !replacing ? (
             <div>
               <span className="label">{live ? d.preview : d.media}</span>
               <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white/70">
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="max-h-56 w-full bg-slate-50 object-contain"
-                />
+                {isCarousel ? (
+                  // Numbered, because the order is what makes it a carousel
+                  // rather than a pile of pictures.
+                  <div className="grid grid-cols-3 gap-1.5 p-2">
+                    {imageUrls.map((url, index) => (
+                      <div key={url} className="relative aspect-square overflow-hidden rounded-lg">
+                        <img src={url} alt="" className="h-full w-full bg-slate-50 object-cover" />
+                        <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-md bg-black/60 text-[11px] font-extrabold text-white">
+                          {index + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <img src={imageUrl} alt="" className="max-h-56 w-full bg-slate-50 object-contain" />
+                )}
+
                 {!live && (
                   <div className="px-3 py-2 text-right">
                     <button
@@ -371,8 +402,12 @@ export default function PostDrawer({
             <p className="text-xs font-semibold text-slate-400">{d.needImage}</p>
           ) : (
             <ImagePicker
-              key={item.id ?? 'new'}
-              onUploaded={(url) => url && setImageUrl(url)}
+              key={`${item.id ?? 'new'}-${postType}`}
+              max={isCarousel ? MAX_CAROUSEL : 1}
+              onUploaded={(urls) => {
+                setImageUrls(urls)
+                setImageUrl(urls[0] ?? null)
+              }}
               notify={notify}
             />
           )}

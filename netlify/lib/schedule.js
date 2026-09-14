@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readDoc, updateDoc } from './store.js'
+import { MAX_CAROUSEL, MIN_CAROUSEL } from './instagram.js'
 
 const KEY = 'schedule'
 
@@ -39,6 +40,8 @@ const KEY = 'schedule'
 
 export const STATUSES = ['draft', 'scheduled', 'publishing', 'published', 'failed']
 
+export { MAX_CAROUSEL, MIN_CAROUSEL }
+
 /** Only Instagram has server-side credentials, so only it can actually publish. */
 export const PUBLISHABLE_PLATFORMS = ['instagram']
 
@@ -59,6 +62,9 @@ function normalise(input, existing = null) {
     platform: 'instagram',
     postType: 'FEED',
     imageUrl: null,
+    // A carousel's images, in the order they are swiped through. Empty for
+    // every other post type, which carries its one image in imageUrl.
+    imageUrls: [],
     caption: '',
     scheduledFor: null,
     status: 'draft',
@@ -76,6 +82,11 @@ function normalise(input, existing = null) {
   if (input.postType !== undefined) next.postType = String(input.postType)
   if (input.caption !== undefined) next.caption = String(input.caption)
   if (input.imageUrl !== undefined) next.imageUrl = input.imageUrl || null
+  if (input.imageUrls !== undefined) {
+    next.imageUrls = Array.isArray(input.imageUrls) ? input.imageUrls.filter(Boolean) : []
+  }
+  // Records written before carousels existed have no imageUrls at all.
+  if (!Array.isArray(next.imageUrls)) next.imageUrls = []
 
   if (input.scheduledFor !== undefined) {
     const when = new Date(input.scheduledFor)
@@ -98,9 +109,22 @@ function normalise(input, existing = null) {
 
   if (next.status === 'scheduled') {
     if (!next.scheduledFor) throw badRequest('A scheduled post needs a scheduledFor time')
-    if (!next.imageUrl) throw badRequest('A scheduled post needs an image')
     if (!PUBLISHABLE_PLATFORMS.includes(next.platform)) {
       throw badRequest(`Publishing to "${next.platform}" is not connected yet`)
+    }
+
+    // Refused here rather than at publishing time: a carousel queued with one
+    // image would sit looking fine until the cron picked it up hours later and
+    // Meta rejected it.
+    if (next.postType === 'CAROUSEL') {
+      if (next.imageUrls.length < MIN_CAROUSEL) {
+        throw badRequest(`A carousel needs at least ${MIN_CAROUSEL} images`)
+      }
+      if (next.imageUrls.length > MAX_CAROUSEL) {
+        throw badRequest(`A carousel takes at most ${MAX_CAROUSEL} images`)
+      }
+    } else if (!next.imageUrl) {
+      throw badRequest('A scheduled post needs an image')
     }
   }
 

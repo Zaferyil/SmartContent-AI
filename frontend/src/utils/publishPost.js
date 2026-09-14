@@ -18,9 +18,14 @@ const POLL_TIMEOUT_MS = 120000
  * @param onProgress called with the attempt count while waiting, so the UI can
  *                   show that something is still happening.
  */
-export async function publishPost({ imageUrl, caption, postType, accountId }, { onProgress } = {}) {
+export async function publishPost(
+  { imageUrl, imageUrls, caption, postType, accountId },
+  { onProgress } = {}
+) {
   const started = await api('instagram-publish', {
-    body: { imageUrl, caption, postType, accountId },
+    // imageUrls is the carousel's images. Leaving it out of this body is how a
+    // carousel reached the server as a post with no media at all.
+    body: { imageUrl, imageUrls, caption, postType, accountId },
   })
 
   // This endpoint always answers with a body. Reading `.done` off nothing is

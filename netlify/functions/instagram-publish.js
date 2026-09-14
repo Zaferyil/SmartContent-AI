@@ -36,12 +36,13 @@ export const handler = async (event) => {
       return json(400, { error: 'Request body is not valid JSON' })
     }
 
-    const { imageUrl, videoUrl, caption = '', postType = 'FEED', accountId } = body
+    const { imageUrl, imageUrls, videoUrl, caption = '', postType = 'FEED', accountId } = body
     const { id, token, userId } = await resolveAccount(accountId)
 
-    // Step 1 — create the media container.
+    // Step 1 — create the media container. For a carousel this is several
+    // child containers and a parent, which createContainer handles.
     const containerId = await createContainer(
-      { imageUrl, videoUrl, caption, postType },
+      { imageUrl, imageUrls, videoUrl, caption, postType },
       { token, userId }
     )
 
@@ -53,8 +54,10 @@ export const handler = async (event) => {
       const mediaId = await publishContainer(containerId, userId, token)
       // Recorded here rather than in the browser: a closed tab must not cost us
       // the history the analytics screens are built on.
-      await recordPublished({ mediaId, accountId: id, imageUrl, caption, postType }).catch((e) =>
-        console.error('Could not record the published post:', e.message)
+      // A carousel has no single image; the first one is what the reports show.
+      const thumbnail = imageUrl ?? imageUrls?.[0] ?? null
+      await recordPublished({ mediaId, accountId: id, imageUrl: thumbnail, caption, postType }).catch(
+        (e) => console.error('Could not record the published post:', e.message)
       )
       return json(200, { ok: true, done: true, postType, mediaId, containerId, accountId: id })
     }
@@ -64,7 +67,7 @@ export const handler = async (event) => {
       done: false,
       postType,
       containerId,
-      imageUrl,
+      imageUrl: imageUrl ?? imageUrls?.[0] ?? null,
       caption,
       accountId: id,
     })
