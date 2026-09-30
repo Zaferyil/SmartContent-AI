@@ -134,6 +134,22 @@ export const translations = {
         REELS: 'Reels',
       },
       storyNoCaption: 'In Storys erscheint kein Text — Instagram nimmt keine Bildunterschrift an.',
+      etsy: {
+        pick: 'Produkt aus deinem Etsy-Shop wählen',
+        title: 'Produkt wählen',
+        shopLine: '{shop} · {n} aktive Artikel',
+        chosen: 'Aus Etsy',
+        photoCount: '{n} Fotos',
+        linkLabel: 'Im Shop',
+        loading: 'Artikel werden geladen …',
+        empty: 'In diesem Shop sind gerade keine aktiven Artikel.',
+        close: 'Schließen',
+        partial: 'Zeigt die zuletzt geladenen Artikel.',
+        readOnly:
+          'Nur Lesezugriff — die App kann deinen Shop nicht verändern. Die Fotos bleiben bei Etsy, Instagram holt sie sich von dort.',
+        linkNote:
+          'Links in Instagram-Texten sind nicht anklickbar. Die Shop-Adresse steht als Text da — verlinken lässt sie sich nur im Profil.',
+      },
       storyNothingToWrite:
         'Für Storys wird kein Text gebraucht. Lade ein Bild hoch und veröffentliche es direkt.',
       media: {
@@ -594,6 +610,22 @@ export const translations = {
         REELS: 'Reels',
       },
       storyNoCaption: 'Stories show no text — Instagram does not accept a caption.',
+      etsy: {
+        pick: 'Choose a product from your Etsy shop',
+        title: 'Choose a product',
+        shopLine: '{shop} · {n} active listings',
+        chosen: 'From Etsy',
+        photoCount: '{n} photos',
+        linkLabel: 'In the shop',
+        loading: 'Loading listings …',
+        empty: 'This shop has no active listings right now.',
+        close: 'Close',
+        partial: 'Showing the listings loaded so far.',
+        readOnly:
+          'Read-only — this app cannot change your shop. The photos stay on Etsy; Instagram fetches them from there.',
+        linkNote:
+          'Links in Instagram captions are not clickable. The shop address sits there as text — only the profile link can be tapped.',
+      },
       storyNothingToWrite:
         'Stories need no copy. Upload an image and publish it straight away.',
       media: {

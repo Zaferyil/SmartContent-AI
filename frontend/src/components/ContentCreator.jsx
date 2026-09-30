@@ -12,6 +12,8 @@ import {
   Clock,
   Film,
   AlertTriangle,
+  ShoppingBag,
+  X,
 } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
@@ -21,9 +23,11 @@ import { fanOut, outcome } from '../utils/fanOut'
 import { deleteStoredVideo } from '../utils/storage'
 import { fetchSchedule, saveScheduled } from '../utils/schedule'
 import { atTime, addDays } from '../utils/calendar'
+import { draftCaption, formatPrice, topicFor } from '../utils/etsy'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
 import VideoPicker from './VideoPicker'
+import EtsyPicker from './EtsyPicker'
 import ChannelResults from './ChannelResults'
 
 const POST_TYPES = [
@@ -69,6 +73,11 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // gone. The picker owns its preview, so clearing videoUrl alone would leave a
   // video on screen whose bytes no longer exist anywhere.
   const [reelRound, setReelRound] = useState(0)
+  // The listing this post came from, when it came from one. Kept whole rather
+  // than only its urls: the panel shows what was picked, and the AI button
+  // needs the listing's own words to rewrite from.
+  const [listing, setListing] = useState(null)
+  const [browsing, setBrowsing] = useState(false)
   const captionRef = useRef(null)
 
   // Default to the first connected account, and follow the list if it arrives
@@ -87,11 +96,65 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // screen cannot show what it holds. Without this the uploads from the previous
   // type stay in state behind an empty picker — a publish button offering to
   // send an image that is nowhere in sight.
-  useEffect(() => {
-    setImageUrls([])
+  /**
+   * Switching the post type, and deciding what the media does about it.
+   *
+   * Done here rather than in an effect on postType. An effect cannot tell the
+   * two cases apart in the right order: choosing a listing sets the media and
+   * the type in the same breath, and an effect watching the type would wipe
+   * the media it had just been given.
+   *
+   * Uploaded media does not survive a switch — its picker unmounts, and state
+   * left behind it is a publish button offering a file nowhere in sight.
+   * Listing media does survive, because this screen draws that panel itself.
+   * Neither survives into Reels, which is a video post.
+   */
+  const changeType = (id) => {
+    if (id === postType) return
+    setResults(null)
+
+    if (id === 'REELS' || !listing) {
+      setImageUrls([])
+      setListing(null)
+    }
+    if (id !== 'REELS') setVideoUrl(null)
+
+    setPostType(id)
+  }
+
+  /**
+   * Turns a chosen listing into the beginnings of a post.
+   *
+   * The images are Etsy's own public URLs and go straight through — Instagram
+   * fetches media itself, so there is nothing to upload and nothing of ours to
+   * store or clean up afterwards.
+   *
+   * The caption is a draft built from the seller's own title, description,
+   * price and tags. It is put in the editable box rather than published from,
+   * and the AI button stays available to rewrite it.
+   */
+  const useListing = (picked) => {
+    setBrowsing(false)
+    setListing(picked)
+
+    const urls = picked.images.map((image) => image.url).slice(0, MAX_CAROUSEL)
+    setImageUrls(urls)
     setVideoUrl(null)
     setResults(null)
-  }, [postType])
+
+    // Several photos are a carousel, one is a feed post. A story is left alone:
+    // choosing it was a deliberate decision about where this goes, and it uses
+    // the first photo either way.
+    if (postType !== 'STORY') setPostType(urls.length > 1 ? 'CAROUSEL' : 'FEED')
+
+    setTopic(topicFor(picked))
+    setResult(
+      draftCaption(picked, {
+        locale: language === 'de' ? 'de-DE' : 'en-US',
+        linkLabel: t.create.etsy.linkLabel,
+      })
+    )
+  }
 
   const toggleAccount = (id) =>
     setAccountIds((current) =>
@@ -276,6 +339,8 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
 
   return (
     <div>
+      <EtsyPicker open={browsing} onClose={() => setBrowsing(false)} onPick={useListing} />
+
       {/* The standing subtitle promises copy written from an image, which is
           not what this screen does for a reel. */}
       <ScreenHeader
@@ -295,7 +360,7 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                 return (
                   <button
                     key={id}
-                    onClick={() => setPostType(id)}
+                    onClick={() => changeType(id)}
                     aria-pressed={active}
                     className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 py-3 text-[13px] font-bold transition-all ${
                       active
@@ -323,11 +388,87 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
             )}
           </div>
 
+          {/* Offered wherever photos are the medium. A reel needs a video, and
+              a listing has none. */}
+          {!isReel && !listing && (
+            <button
+              onClick={() => setBrowsing(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 px-4 py-3 text-[13px] font-bold text-slate-600 transition-all hover:border-brand-400 hover:bg-white hover:text-brand-700"
+            >
+              <ShoppingBag size={16} strokeWidth={2.5} />
+              {t.create.etsy.pick}
+            </button>
+          )}
+
           {isReel ? (
             /* Keyed on the round: once a reel is out its file is deleted, so the
                picker has to start over rather than keep showing a preview of
                bytes that no longer exist. */
             <VideoPicker key={`reel-${reelRound}`} onUploaded={setVideoUrl} notify={notify} />
+          ) : listing ? (
+            /*
+              A listing's photos are shown here rather than handed to the image
+              picker. They are not uploads — they stay on Etsy's own servers and
+              Instagram fetches them from there — so there is nothing to upload,
+              nothing of ours to store, and nothing to clean up afterwards.
+            */
+            <div>
+              <span className="label">{t.create.etsy.chosen}</span>
+              <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white/70">
+                <div className="grid grid-cols-3 gap-1.5 p-2 sm:grid-cols-4">
+                  {imageUrls.map((url, index) => (
+                    <div key={url} className="relative aspect-square overflow-hidden rounded-lg">
+                      <img src={url} alt="" className="h-full w-full bg-slate-50 object-cover" />
+                      {isCarousel && (
+                        <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-md bg-black/60 text-[11px] font-extrabold text-white">
+                          {index + 1}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-bold text-slate-700">
+                      {listing.title}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-400">
+                      {[
+                        formatPrice(listing.price, language === 'de' ? 'de-DE' : 'en-US'),
+                        fill(t.create.etsy.photoCount, { n: imageUrls.length }),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-3">
+                    <button
+                      onClick={() => setBrowsing(true)}
+                      className="text-xs font-bold text-brand-600 hover:underline"
+                    >
+                      {t.create.media.change}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setListing(null)
+                        setImageUrls([])
+                      }}
+                      aria-label={t.create.media.remove}
+                      className="grid h-7 w-7 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-rose-600"
+                    >
+                      <X size={15} strokeWidth={2.5} />
+                    </button>
+                  </span>
+                </div>
+              </div>
+
+              {/* Said once, here, because a shop owner's whole reason for
+                  posting the listing is the link — and finding out it is inert
+                  after publishing is finding out too late. */}
+              <p className="mt-2 text-xs font-semibold text-slate-400">{t.create.etsy.linkNote}</p>
+            </div>
           ) : (
             /* Keyed on the post type: switching between one image and ten has to
                start the picker over, or the leftovers of the other mode linger. */
