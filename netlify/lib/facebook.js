@@ -67,11 +67,73 @@ export async function fbGraph(path, { method = 'GET', params = {}, token } = {})
  * audience the user did not choose — the one mistake here that cannot be
  * undone by deleting a post.
  */
+/** Which permissions the token was actually granted, for the failure message. */
+async function grantedScopes(token) {
+  try {
+    const { data } = await fbGraph('me/permissions', { token })
+    return (data ?? [])
+      .filter((row) => row.status === 'granted')
+      .map((row) => row.permission)
+  } catch {
+    // The token is too broken to ask. The caller has a message either way.
+    return null
+  }
+}
+
+const NEEDED = ['pages_show_list', 'pages_manage_posts']
+
+/**
+ * Says why no Page could be connected, precisely enough to act on.
+ *
+ * This used to relay whatever Facebook said, which for the usual mistakes is
+ * unhelpful to the point of being misleading — "Invalid OAuth access token"
+ * is the same sentence for an expired token, an Instagram token, and a token
+ * from the wrong app. The three fixes are completely different, so the message
+ * names which one it is.
+ */
+async function diagnose({ token, person, accountsError }) {
+  const scopes = await grantedScopes(token)
+  const missing = scopes ? NEEDED.filter((scope) => !scopes.includes(scope)) : []
+
+  if (missing.length) {
+    return (
+      `This token is missing ${missing.join(' and ')}. ` +
+      `It currently has: ${scopes.length ? scopes.join(', ') : 'nothing'}. ` +
+      'Generate it again in the Graph API Explorer with those permissions ticked.'
+    )
+  }
+
+  if (person) {
+    return (
+      `This token belongs to ${person}, not to a Page, and that account administers no Facebook Page. ` +
+      'A Page is what this app posts to — an Instagram business account is not one. ' +
+      'Create a Page, or use a token from an account that already administers one.'
+    )
+  }
+
+  return accountsError
+    ? `Facebook would not list any Page for this token: ${accountsError.message}`
+    : 'Facebook listed no Page for this token.'
+}
+
 export async function identifyPage(token, pageId = null) {
   const trimmed = String(token ?? '').trim()
   if (trimmed.length < 20) throw fail(400, 'That does not look like an access token')
 
+  // The likeliest mistake, and the one Facebook answers most obscurely: an
+  // Instagram Login token pasted into the Facebook form. It is not a Facebook
+  // token at all, and graph.facebook.com replies "Cannot parse access token",
+  // which reads like the token was mistyped.
+  if (/^IGQ/i.test(trimmed)) {
+    throw fail(
+      400,
+      'That is an Instagram token — it starts with "IGQ". A Facebook Page needs a Facebook token ' +
+        '(it starts with "EAA"), generated under Facebook Login or in the Graph API Explorer.'
+    )
+  }
+
   let pages = []
+  let accountsError = null
   try {
     const mine = await fbGraph('me/accounts', {
       params: { fields: 'id,name,access_token,tasks' },
@@ -79,33 +141,65 @@ export async function identifyPage(token, pageId = null) {
     })
     pages = mine.data ?? []
   } catch (error) {
-    // A Page token cannot list accounts. That is not a failure, it just means
-    // we are already holding the Page, which /me below will confirm.
-    pages = []
+    // Kept, not swallowed. A Page token genuinely cannot list accounts, so
+    // this is not always a failure — but when nothing else works out it is
+    // the only thing that knows why.
+    accountsError = error
   }
 
   if (pages.length === 0) {
     let me
     try {
-      me = await fbGraph('me', { params: { fields: 'id,name' }, token: trimmed })
+      // `category` exists on a Page and not on a person, which is what tells
+      // a Page token from a user token holding no Pages.
+      me = await fbGraph('me', { params: { fields: 'id,name,category' }, token: trimmed })
+    } catch (error) {
+      me = null
+    }
+
+    if (me?.id && me.category) {
+      return { externalId: String(me.id), username: me.name ?? null, token: trimmed }
+    }
+
+    // Not a Page. Before this returned it anyway — storing a person's own
+    // profile as a "Facebook channel", which then failed at publishing time
+    // with an error about a photos edge the user never asked for.
+    let person = null
+    try {
+      const who = await fbGraph('me', { params: { fields: 'id,name' }, token: trimmed })
+      person = who.name ?? who.id ?? null
     } catch (error) {
       throw fail(401, `Facebook rejected this token: ${error.message}`)
     }
 
-    if (!me.id) throw fail(400, 'Facebook did not return a Page for this token')
+    throw fail(400, await diagnose({ token: trimmed, person, accountsError }))
+  }
 
-    // A user token with no Pages reaches here too, and /me is the person, not
-    // a Page. Publishing to a person's own timeline is not what this app is
-    // for, and Meta no longer allows it from an app anyway.
-    return { externalId: String(me.id), username: me.name ?? null, token: trimmed }
+  /**
+   * A Page listed is not always a Page postable to. `tasks` says what this
+   * person may do on it — an editor or moderator has no CREATE_CONTENT — and
+   * without the check the channel connects happily and then refuses every
+   * post, days later, with an error about permissions on an edge.
+   */
+  const usable = (page) => {
+    if (Array.isArray(page.tasks) && !page.tasks.includes('CREATE_CONTENT')) {
+      throw fail(
+        400,
+        `You can see the Page "${page.name}" but not post to it — your role there is ${
+          page.tasks.join(', ') || 'view only'
+        }. Posting needs the "Create content" task, which a Page admin can grant.`
+      )
+    }
+    return { externalId: String(page.id), username: page.name ?? null, token: page.access_token }
   }
 
   if (pageId) {
     const chosen = pages.find((page) => String(page.id) === String(pageId))
     if (!chosen) {
-      throw fail(400, `This token has no Page with id ${pageId}.`)
+      const list = pages.map((page) => `${page.name} (${page.id})`).join(', ')
+      throw fail(400, `This token has no Page with id ${pageId}. It manages: ${list || 'none'}.`)
     }
-    return { externalId: String(chosen.id), username: chosen.name ?? null, token: chosen.access_token }
+    return usable(chosen)
   }
 
   if (pages.length > 1) {
@@ -116,10 +210,10 @@ export async function identifyPage(token, pageId = null) {
     )
   }
 
+  // One Page, and `usable` hands back its own token rather than the user's:
+  // that is what publishing needs, and it outlives the token it came from.
   const [only] = pages
-  // The Page's own token, not the user's: it is what publishing needs, and it
-  // outlives the user token it came from.
-  return { externalId: String(only.id), username: only.name ?? null, token: only.access_token }
+  return usable(only)
 }
 
 /** What this app can put on a Page, and what it cannot. */
