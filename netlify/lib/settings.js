@@ -16,6 +16,15 @@ const DEFAULTS = {
   timezone: 'Europe/Vienna',
   postsPerDay: 3,
   preferredTimes: ['09:00', '13:00', '18:30'],
+  /**
+   * Which channel the Create screen starts on.
+   *
+   * Null means "the first one", which is a fair guess only while there is one.
+   * With several, "first" is whichever happens to sort first — so the channel
+   * someone actually posts to most is named here rather than guessed at, and
+   * never written into the code.
+   */
+  defaultAccountId: null,
 }
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -57,6 +66,14 @@ export async function writeSettings(input) {
       if (!HHMM.test(String(time))) throw badRequest(`"${time}" is not a HH:MM time`)
     }
     next.preferredTimes = [...new Set(input.preferredTimes.map(String))].sort()
+  }
+
+  // Not checked against the account list on purpose: settings and accounts are
+  // separate documents, and a channel removed later would otherwise have to
+  // reach in here to tidy up. The Create screen ignores an id it cannot find
+  // and falls back, which is the same outcome with less coupling.
+  if (input.defaultAccountId !== undefined) {
+    next.defaultAccountId = input.defaultAccountId ? String(input.defaultAccountId) : null
   }
 
   await updateDoc(KEY, (items) => [...items.filter((item) => item.id !== ID), next])

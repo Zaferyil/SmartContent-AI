@@ -85,12 +85,17 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
   // The filter lists connected accounts, not platforms: a post belongs to an
   // account, and with two Instagram channels "Instagram" would not narrow
   // anything down.
-  const defaultAccountId = accounts[0]?.id ?? null
+  // Which channel an entry belongs to when it names none — records written
+  // before channels existed. Not the same thing as the channel the user
+  // chose to start on, which is `preferredAccountId` below; sharing one name
+  // for both is how a new post kept opening on the wrong one.
+  const fallbackAccountId = accounts[0]?.id ?? null
+  const preferredAccountId = settings?.defaultAccountId ?? fallbackAccountId
 
   const visible = useMemo(() => {
     if (channel === 'all') return items
-    return items.filter((item) => (item.accountId ?? defaultAccountId) === channel)
-  }, [items, channel, defaultAccountId])
+    return items.filter((item) => (item.accountId ?? fallbackAccountId) === channel)
+  }, [items, channel, fallbackAccountId])
 
   const recommendation = useMemo(
     () => (settings ? recommendedTimes({ posts, settings }) : null),
@@ -161,7 +166,7 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
       imageUrl: item.imageUrl,
       caption: item.caption,
       postType: item.postType,
-      accountId: item.accountId ?? defaultAccountId,
+      accountId: item.accountId ?? fallbackAccountId,
     })
 
     await persist(async () => {
@@ -208,7 +213,7 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
   const openNew = (day = new Date(), time) => {
     const when = time ? atTime(day, time) : isToday(day) ? new Date(Date.now() + 3600000) : atTime(day, settings?.preferredTimes?.[0] ?? '09:00')
     setDrawerItem({
-      accountId: channel === 'all' ? defaultAccountId : channel,
+      accountId: channel === 'all' ? preferredAccountId : channel,
       platform: 'instagram',
       postType: 'FEED',
       imageUrl: null,
@@ -589,6 +594,7 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
           item={drawerItem}
           accounts={accounts}
           publishable={publishable}
+          defaultAccountId={settings?.defaultAccountId ?? null}
           onClose={() => setDrawerItem(null)}
           onSave={save}
           onDelete={remove}

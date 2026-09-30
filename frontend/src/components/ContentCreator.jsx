@@ -85,18 +85,55 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // after this screen first rendered. Only the first, never all of them: the
   // button says "publish", and having it reach every channel by default is the
   // kind of surprise that cannot be taken back.
+  // Which channel to open on, chosen under Channels. Read once: changing it
+  // mid-session should not move a selection the user has already made.
+  const [defaultAccountId, setDefaultAccountId] = useState(null)
+  useEffect(() => {
+    fetchSchedule()
+      .then(({ settings }) => setDefaultAccountId(settings?.defaultAccountId ?? null))
+      .catch(() => {
+        /* No preference stored is the same as none chosen. */
+      })
+  }, [])
+
+  /*
+   * True once the selection is the user's own rather than this screen's guess.
+   *
+   * The two arrive at different times: the channel list resolves before the
+   * stored preference does, so without this the screen picks the first channel,
+   * the preference lands a moment later, and the effect sees a perfectly valid
+   * selection and leaves it — which is how "default channel" got saved,
+   * displayed, and then quietly ignored.
+   */
+  const userPicked = useRef(false)
+
   useEffect(() => {
     setAccountIds((current) => {
       const kept = current.filter((id) => accounts.some((a) => a.id === id))
-      if (kept.length) return kept
-      return accounts[0] ? [accounts[0].id] : []
-    })
-  }, [accounts])
+      if (userPicked.current && kept.length) return kept
 
-  // Switching the post type swaps the picker out, and a picker that is not on
-  // screen cannot show what it holds. Without this the uploads from the previous
-  // type stay in state behind an empty picker — a publish button offering to
-  // send an image that is nowhere in sight.
+      // The chosen default, if it is still connected; otherwise the first, as
+      // before. An id left behind by a deleted channel must not select nothing.
+      const preferred = accounts.find((a) => a.id === defaultAccountId) ?? accounts[0]
+      return preferred ? [preferred.id] : []
+    })
+  }, [accounts, defaultAccountId])
+
+  /**
+   * Drops one photo from the listing's set.
+   *
+   * The post type follows what is left, because the two are not independent:
+   * a carousel of one is a post Instagram refuses, and leaving the type on
+   * Carousel would disable publishing with no visible reason. Removing the
+   * last photo puts the picker back rather than leaving an empty panel.
+   */
+  const dropImage = (url) => {
+    const next = imageUrls.filter((each) => each !== url)
+    setImageUrls(next)
+    if (next.length === 0) setListing(null)
+    else if (next.length === 1 && isCarousel) setPostType('FEED')
+  }
+
   /**
    * Switching the post type, and deciding what the media does about it.
    *
@@ -149,6 +186,7 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
     if (postType !== 'STORY') setPostType(urls.length > 1 ? 'CAROUSEL' : 'FEED')
 
     setTopic(topicFor(picked))
+
     setResult(
       draftCaption(picked, {
         locale: language === 'de' ? 'de-DE' : 'en-US',
@@ -157,7 +195,8 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
     )
   }
 
-  const toggleAccount = (id) =>
+  const toggleAccount = (id) => {
+    userPicked.current = true
     setAccountIds((current) =>
       current.includes(id)
         ? // Never down to nothing: an empty selection turns the publish button
@@ -167,6 +206,7 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
           : current.filter((x) => x !== id)
         : [...current, id]
     )
+  }
 
   const targets = accounts.filter((a) => accountIds.includes(a.id))
 
@@ -428,13 +468,33 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
               <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white/70">
                 <div className="grid grid-cols-3 gap-1.5 p-2 sm:grid-cols-4">
                   {imageUrls.map((url, index) => (
-                    <div key={url} className="relative aspect-square overflow-hidden rounded-lg">
+                    <div
+                      key={url}
+                      className="group relative aspect-square overflow-hidden rounded-lg"
+                    >
                       <img src={url} alt="" className="h-full w-full bg-slate-50 object-cover" />
                       {isCarousel && (
                         <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-md bg-black/60 text-[11px] font-extrabold text-white">
                           {index + 1}
                         </span>
                       )}
+
+                      {/*
+                        A listing's photos are not all post material — the last
+                        ones are usually a size chart or a colour grid. Dropping
+                        them one at a time beats going back and choosing a
+                        different product.
+
+                        Revealed on hover, but always there on a touch screen,
+                        where hovering is not a thing anyone can do.
+                      */}
+                      <button
+                        onClick={() => dropImage(url)}
+                        aria-label={t.create.media.remove}
+                        className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-md bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                      >
+                        <X size={13} strokeWidth={3} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -585,13 +645,14 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
               <span className="label !mb-0">{t.create.targetLabel}</span>
               {accounts.length > 1 && (
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    userPicked.current = true
                     setAccountIds(
                       accountIds.length === accounts.length
                         ? [accounts[0].id]
                         : accounts.map((a) => a.id)
                     )
-                  }
+                  }}
                   className="shrink-0 text-xs font-extrabold text-brand-600 transition-colors hover:text-brand-700"
                 >
                   {accountIds.length === accounts.length

@@ -7,6 +7,7 @@ import {
   Copy,
   Loader2,
   Send,
+  ShoppingBag,
   Sparkles,
   Trash2,
   X,
@@ -16,8 +17,10 @@ import { getPlatform } from '../../data/platforms'
 import { fromDateTimeInput, toDateInput, toTimeInput } from '../../utils/calendar'
 import { generateCaption } from '../../utils/generateCaption'
 import { channelLabel } from '../../utils/channelLabel'
+import { draftCaption } from '../../utils/etsy'
 import ImagePicker from '../ImagePicker'
 import VideoPicker from '../VideoPicker'
+import EtsyPicker from '../EtsyPicker'
 import StatusChip from './StatusChip'
 
 const POST_TYPES = ['FEED', 'CAROUSEL', 'STORY', 'REELS']
@@ -40,6 +43,7 @@ export default function PostDrawer({
   item,
   accounts = [],
   publishable,
+  defaultAccountId = null,
   onClose,
   onSave,
   onDelete,
@@ -62,6 +66,11 @@ export default function PostDrawer({
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [replacing, setReplacing] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
+  // Set while a listing's photos are what this entry holds, so the drawer
+  // draws them itself instead of handing them to an uploader that has nothing
+  // to upload.
+  const [listing, setListing] = useState(null)
   const [writing, setWriting] = useState(false)
   const [writeError, setWriteError] = useState(null)
   const errorRef = useRef(null)
@@ -77,7 +86,11 @@ export default function PostDrawer({
   useEffect(() => {
     if (!item) return
     const when = item.scheduledFor ? new Date(item.scheduledFor) : new Date()
-    const first = item.accountId ?? accounts[0]?.id ?? null
+    // An existing entry keeps its own channel. A new one opens on the default
+    // chosen under Channels, and only falls back to the first when none is set
+    // or the chosen one has since been disconnected.
+    const preferred = accounts.find((a) => a.id === defaultAccountId) ?? accounts[0]
+    const first = item.accountId ?? preferred?.id ?? null
     setAccountIds(first ? [first] : [])
     setPlatform(item.platform ?? 'instagram')
     setPostType(item.postType ?? 'FEED')
@@ -89,6 +102,8 @@ export default function PostDrawer({
     setDate(toDateInput(when))
     setTime(toTimeInput(when))
     setReplacing(false)
+    setListing(null)
+    setBrowsing(false)
     setWriteError(null)
   }, [item])
 
@@ -158,6 +173,39 @@ export default function PostDrawer({
     }
   }
 
+  /**
+   * Fills the drawer from an Etsy listing.
+   *
+   * Same bargain as on the Create screen: the photos stay on Etsy and go into
+   * the post as their own urls, and the caption is drafted from the seller's
+   * own words. Here it also clears `replacing`, because picking a product is
+   * itself the decision to replace whatever this entry held.
+   */
+  const useListing = (picked) => {
+    setBrowsing(false)
+    const urls = picked.images.map((image) => image.url).slice(0, MAX_CAROUSEL)
+    setListing(picked)
+    setImageUrls(urls)
+    setImageUrl(urls[0] ?? null)
+    setVideoUrl(null)
+    if (postType !== 'STORY') setPostType(urls.length > 1 ? 'CAROUSEL' : 'FEED')
+    setCaption(
+      draftCaption(picked, {
+        locale: language === 'de' ? 'de-DE' : 'en-US',
+        linkLabel: t.create.etsy.linkLabel,
+      })
+    )
+  }
+
+  /** Drops one photo; the type follows what is left, as on the Create screen. */
+  const dropImage = (url) => {
+    const next = imageUrls.filter((each) => each !== url)
+    setImageUrls(next)
+    setImageUrl(next[0] ?? null)
+    if (next.length === 0) setListing(null)
+    else if (next.length === 1 && postType === 'CAROUSEL') setPostType('FEED')
+  }
+
   const isCarousel = postType === 'CAROUSEL'
   const isReel = postType === 'REELS'
   const enoughImages = isCarousel ? imageUrls.length >= 2 : Boolean(imageUrl)
@@ -210,6 +258,9 @@ export default function PostDrawer({
   // for `position: fixed` — which would trap this panel inside the page.
   return createPortal(
     <div className="fixed inset-0 z-[60] flex justify-end">
+      {/* Its own portal, so it lands above this drawer rather than inside it. */}
+      <EtsyPicker open={browsing} onClose={() => setBrowsing(false)} onPick={useListing} />
+
       <button
         aria-label={t.common.close}
         onClick={onClose}
@@ -381,7 +432,48 @@ export default function PostDrawer({
             images were never uploaded. The picker shows its own thumbnails, so
             there is nothing to swap to anyway.
           */}
-          {hadMedia && !replacing ? (
+          {listing ? (
+            <div>
+              <span className="label">{t.create.etsy.chosen}</span>
+              <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white/70">
+                <div className="grid grid-cols-3 gap-1.5 p-2 sm:grid-cols-4">
+                  {imageUrls.map((url, index) => (
+                    <div
+                      key={url}
+                      className="group relative aspect-square overflow-hidden rounded-lg"
+                    >
+                      <img src={url} alt="" className="h-full w-full bg-slate-50 object-cover" />
+                      {isCarousel && (
+                        <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-md bg-black/60 text-[11px] font-extrabold text-white">
+                          {index + 1}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => dropImage(url)}
+                        aria-label={t.create.media.remove}
+                        className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-md bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                      >
+                        <X size={13} strokeWidth={3} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3 py-2.5">
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-700">
+                    {listing.title}
+                  </span>
+                  <button
+                    onClick={() => setBrowsing(true)}
+                    className="shrink-0 text-xs font-bold text-brand-600 hover:underline"
+                  >
+                    {t.create.media.change}
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-400">{t.create.etsy.linkNote}</p>
+            </div>
+          ) : hadMedia && !replacing ? (
             <div>
               <span className="label">{live ? d.preview : d.media}</span>
               <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white/70">
@@ -448,6 +540,18 @@ export default function PostDrawer({
               }}
               notify={notify}
             />
+          )}
+
+          {/* Offered wherever photos are the medium and the entry is still
+              editable. A reel needs a video and a listing has none. */}
+          {!live && !isReel && !listing && (
+            <button
+              onClick={() => setBrowsing(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 px-4 py-3 text-[13px] font-bold text-slate-600 transition-all hover:border-brand-400 hover:bg-white hover:text-brand-700"
+            >
+              <ShoppingBag size={16} strokeWidth={2.5} />
+              {t.create.etsy.pick}
+            </button>
           )}
 
           {/* ---------- Caption ---------- */}

@@ -7,13 +7,21 @@ import {
   Plus,
   RefreshCw,
   ShieldCheck,
+  Star,
   Trash2,
   X,
 } from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { LANGUAGES, translations } from '../i18n/translations'
 import { getPlatform } from '../data/platforms'
-import { addAccount, fetchAccounts, fetchStorageStatus, removeAccount } from '../utils/schedule'
+import {
+  addAccount,
+  fetchAccounts,
+  fetchSchedule,
+  fetchStorageStatus,
+  removeAccount,
+  saveSettings,
+} from '../utils/schedule'
 import ScreenHeader from './ScreenHeader'
 
 const fill = (template, vars) =>
@@ -44,6 +52,29 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [storage, setStorage] = useState(null)
+  const [defaultAccountId, setDefaultAccountId] = useState(null)
+
+  useEffect(() => {
+    fetchSchedule()
+      .then(({ settings }) => setDefaultAccountId(settings?.defaultAccountId ?? null))
+      .catch(() => {
+        /* A missing preference is not worth an error banner: the Create screen
+           falls back to the first channel, which is what it did before. */
+      })
+  }, [])
+
+  // Pressing the star again clears it, so there is a way back to no default.
+  const makeDefault = async (account) => {
+    const next = defaultAccountId === account.id ? null : account.id
+    setDefaultAccountId(next)
+    try {
+      await saveSettings({ defaultAccountId: next })
+      onAccountsChanged?.()
+    } catch (e) {
+      setDefaultAccountId(defaultAccountId)
+      notify(e.message, 'warn')
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -173,14 +204,37 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => disconnect(account)}
-                    aria-label={s.disconnect}
-                    title={s.disconnect}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-500 transition-colors hover:bg-rose-100"
-                  >
-                    <Trash2 size={16} strokeWidth={2.5} />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {/* Which channel the Create screen opens on. Chosen here
+                        rather than assumed: "the first one" only means
+                        something while there is one. */}
+                    <button
+                      onClick={() => makeDefault(account)}
+                      aria-pressed={defaultAccountId === account.id}
+                      title={s.makeDefault}
+                      className={`chip border-2 transition-all ${
+                        defaultAccountId === account.id
+                          ? 'border-brand-500 bg-brand-50 text-brand-700'
+                          : 'border-slate-200 bg-white/70 text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <Star
+                        size={13}
+                        strokeWidth={2.5}
+                        fill={defaultAccountId === account.id ? 'currentColor' : 'none'}
+                      />
+                      {defaultAccountId === account.id ? s.isDefault : s.makeDefault}
+                    </button>
+
+                    <button
+                      onClick={() => disconnect(account)}
+                      aria-label={s.disconnect}
+                      title={s.disconnect}
+                      className="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-500 transition-colors hover:bg-rose-100"
+                    >
+                      <Trash2 size={16} strokeWidth={2.5} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Token health — the thing that otherwise stops posts silently */}

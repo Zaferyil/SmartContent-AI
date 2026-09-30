@@ -125,7 +125,9 @@ export default function EtsyPicker({ open, onClose, onPick }) {
   )
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end">
+    // Above the calendar drawer, which sits at z-[60]. At a lower layer this
+    // opened behind it and its own backdrop swallowed every click.
+    <div className="fixed inset-0 z-[70] flex justify-end">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl">

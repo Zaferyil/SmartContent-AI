@@ -455,6 +455,8 @@ export const translations = {
       connected: '@{username} verbunden.',
       removed: '@{username} getrennt.',
       disconnect: 'Trennen',
+      makeDefault: 'Als Standard',
+      isDefault: 'Standard',
 
       tokenOk: 'Token gültig',
       tokenValidFor: 'Token noch {days} Tage gültig',
@@ -941,6 +943,8 @@ export const translations = {
       connected: '@{username} connected.',
       removed: '@{username} disconnected.',
       disconnect: 'Disconnect',
+      makeDefault: 'Make default',
+      isDefault: 'Default',
 
       tokenOk: 'Token valid',
       tokenValidFor: 'Token valid for another {days} days',
