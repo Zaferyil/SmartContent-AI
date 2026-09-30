@@ -15,6 +15,7 @@ import { useLanguage } from '../../i18n/LanguageContext'
 import { getPlatform } from '../../data/platforms'
 import { fromDateTimeInput, toDateInput, toTimeInput } from '../../utils/calendar'
 import { generateCaption } from '../../utils/generateCaption'
+import { channelLabel } from '../../utils/channelLabel'
 import ImagePicker from '../ImagePicker'
 import VideoPicker from '../VideoPicker'
 import StatusChip from './StatusChip'
@@ -292,12 +293,12 @@ export default function PostDrawer({
                             : 'border-slate-200 bg-white/70 text-slate-500'
                         }`}
                       >
-                        {active ? (
-                          <Check size={13} strokeWidth={3} />
-                        ) : (
-                          p && <span className="text-sm leading-none">{p.icon}</span>
-                        )}
-                        @{account.username ?? account.externalId}
+                        {/* The icon stays when selected: an Instagram account
+                            and a Facebook Page can share a name, and a tick
+                            in place of the icon makes them identical. */}
+                        {p && <span className="text-sm leading-none">{p.icon}</span>}
+                        {channelLabel(account, accounts)}
+                        {active && <Check size={13} strokeWidth={3} />}
                       </button>
                     )
                   })}

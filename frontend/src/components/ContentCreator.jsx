@@ -24,6 +24,7 @@ import { deleteStoredVideo } from '../utils/storage'
 import { fetchSchedule, saveScheduled } from '../utils/schedule'
 import { atTime, addDays } from '../utils/calendar'
 import { draftCaption, formatPrice, topicFor } from '../utils/etsy'
+import { channelLabel } from '../utils/channelLabel'
 import ScreenHeader from './ScreenHeader'
 import ImagePicker from './ImagePicker'
 import VideoPicker from './VideoPicker'
@@ -619,12 +620,14 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                             : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
                         }`}
                       >
-                        {active ? (
-                          <Check size={13} strokeWidth={3} />
-                        ) : (
-                          p && <span className="text-sm leading-none">{p.icon}</span>
-                        )}
-                        @{account.username ?? account.externalId}
+                        {/* The icon stays when selected. It used to be swapped
+                            for the tick, which left a picked Instagram
+                            @sezalab and a picked Facebook SeZaLab looking
+                            exactly alike — and publishing to the wrong one is
+                            not undone by deleting the post. */}
+                        {p && <span className="text-sm leading-none">{p.icon}</span>}
+                        {channelLabel(account, accounts)}
+                        {active && <Check size={13} strokeWidth={3} />}
                       </button>
                     )
                   })}
@@ -633,9 +636,14 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                 {/* Posting to several channels at once is easy to do by accident
                     and impossible to undo, so the count is stated rather than
                     left to be read off the highlighted chips. */}
+                {/* Named, not counted. "2 channels" is a number nobody checks;
+                    seeing the wrong handle spelled out is what stops the
+                    press. */}
                 {accountIds.length > 1 && (
                   <p className="mt-2 text-xs font-semibold text-slate-400">
-                    {fill(t.create.targetCount, { n: accountIds.length })}
+                    {fill(t.create.targetList, {
+                      channels: targets.map((a) => channelLabel(a, accounts)).join(', '),
+                    })}
                   </p>
                 )}
 
