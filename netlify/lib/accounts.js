@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readDoc, updateDoc } from './store.js'
 import { graph, envCredentials } from './instagram.js'
+import { identifyPage } from './facebook.js'
 
 const KEY = 'accounts'
 
