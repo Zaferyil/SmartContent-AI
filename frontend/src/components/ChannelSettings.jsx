@@ -36,7 +36,11 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
 
   const [accounts, setAccounts] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [platform, setPlatform] = useState('instagram')
   const [token, setToken] = useState('')
+  // Only asked for when a Facebook token turns out to manage several Pages.
+  // Demanding it up front would be a field nobody with one Page ever needs.
+  const [pageId, setPageId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [storage, setStorage] = useState(null)
@@ -71,9 +75,10 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
     setBusy(true)
     setError(null)
     try {
-      const account = await addAccount(token.trim())
+      const account = await addAccount(token.trim(), platform, pageId.trim() || null)
       await load()
       setToken('')
+      setPageId('')
       setAdding(false)
       notify(fill(s.connected, { username: account.username ?? '' }))
     } catch (err) {
@@ -205,10 +210,17 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
                     </p>
                   )}
 
+                  {/* "Renewed automatically" is only true of Instagram. The
+                      refresh loop skips every other platform, so saying it
+                      under a Facebook Page would be the app promising upkeep
+                      it does not do — and the promise would only be found out
+                      on the day posting stopped. */}
                   <p className="mt-1 text-[11px] font-semibold text-slate-400">
                     {account.lastRefreshedAt
                       ? fill(s.lastRefreshed, { date: df.format(new Date(account.lastRefreshedAt)) })
-                      : s.autoRefresh}
+                      : account.platform === 'instagram'
+                        ? s.autoRefresh
+                        : s.noAutoRefresh}
                   </p>
                 </div>
               </li>
@@ -235,7 +247,36 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
             </button>
           </div>
 
-          <p className="mb-4 text-[13px] text-slate-500">{s.addHint}</p>
+          <p className="mb-4 text-[13px] text-slate-500">
+            {platform === 'facebook' ? s.addHintFacebook : s.addHint}
+          </p>
+
+          {/* Asked first, because it decides what the token below has to be —
+              an Instagram token and a Facebook one look nothing alike and come
+              from different pages of the Meta dashboard. */}
+          <span className="label">{s.platformLabel}</span>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {['instagram', 'facebook'].map((id) => {
+              const p = getPlatform(id)
+              const active = platform === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPlatform(id)}
+                  aria-pressed={active}
+                  className={`chip border-2 transition-all ${
+                    active
+                      ? 'border-brand-500 bg-brand-50 text-brand-700'
+                      : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  <span className="text-sm leading-none">{p?.icon}</span>
+                  {p?.name ?? id}
+                </button>
+              )
+            })}
+          </div>
 
           <label className="label" htmlFor="token">
             {s.token}
@@ -245,9 +286,28 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
             rows={3}
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="IGQ..."
+            placeholder={platform === 'facebook' ? 'EAA...' : 'IGQ...'}
             className="field resize-y font-mono text-[13px]"
           />
+
+          {/* Optional, and said to be. One Page needs nothing here; several
+              Pages need to be told apart, and the error names them with their
+              ids when that happens. */}
+          {platform === 'facebook' && (
+            <>
+              <label className="label mt-3" htmlFor="pageId">
+                {s.pageId}
+              </label>
+              <input
+                id="pageId"
+                value={pageId}
+                onChange={(e) => setPageId(e.target.value)}
+                placeholder="123456789012345"
+                className="field font-mono text-[13px]"
+              />
+              <p className="mt-1 text-xs font-semibold text-slate-400">{s.pageIdHint}</p>
+            </>
+          )}
 
           {error && (
             <p className="mt-2 flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">

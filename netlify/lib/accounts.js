@@ -178,10 +178,34 @@ export async function resolveAccount(accountId, platform = 'instagram') {
   return { id: account.id, token: account.token, userId: account.externalId, account }
 }
 
-export async function addAccount({ platform = 'instagram', token }) {
-  if (platform !== 'instagram') throw fail(400, `Adding "${platform}" accounts is not supported yet`)
+const SUPPORTED = ['instagram', 'facebook']
 
-  const identity = await identify(token)
+export async function addAccount({ platform = 'instagram', token, pageId = null }) {
+  if (!SUPPORTED.includes(platform)) {
+    throw fail(400, `Adding "${platform}" accounts is not supported yet`)
+  }
+
+  /*
+   * Facebook differs in two ways that matter here.
+   *
+   * The token stored is not always the one pasted: a user token is exchanged
+   * for the Page's own token, which is what publishing actually needs.
+   *
+   * And its expiry is genuinely unknown. Instagram documents 60 days, so the
+   * estimate below is a real one; a Page token's lifetime depends on how it
+   * was obtained, and showing a made-up countdown beside it would be the app
+   * asserting something nobody told it. Unknown is left as null, and the
+   * refresh loop already skips anything that is not Instagram.
+   */
+  const isFacebook = platform === 'facebook'
+  const resolved = isFacebook ? await identifyPage(token, pageId) : await identify(token)
+
+  const identity = {
+    externalId: resolved.externalId,
+    username: resolved.username,
+    accountType: resolved.accountType ?? (isFacebook ? 'PAGE' : null),
+  }
+
   let created = null
 
   await updateDoc(KEY, (accounts) => {
@@ -193,10 +217,12 @@ export async function addAccount({ platform = 'instagram', token }) {
       id: existing?.id ?? randomUUID(),
       platform,
       ...identity,
-      token: String(token).trim(),
+      token: isFacebook ? resolved.token : String(token).trim(),
       tokenAddedAt: new Date().toISOString(),
-      tokenExpiresAt: new Date(Date.now() + ASSUMED_LIFETIME_MS).toISOString(),
-      expiryEstimated: true,
+      tokenExpiresAt: isFacebook
+        ? null
+        : new Date(Date.now() + ASSUMED_LIFETIME_MS).toISOString(),
+      expiryEstimated: !isFacebook,
       lastError: null,
     }
 

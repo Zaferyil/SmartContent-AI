@@ -1,4 +1,5 @@
-import { json, CORS, createContainer, isContainerReady, publishContainer } from '../lib/instagram.js'
+import { json, CORS, isContainerReady, publishContainer } from '../lib/instagram.js'
+import { startPublish } from '../lib/publish.js'
 import { resolveAccount } from '../lib/accounts.js'
 import {
   listScheduled,
@@ -47,8 +48,11 @@ const MAX_ATTEMPTS = 3
  * not, so a post that happened to go out on the fast path lost its account and
  * was left out of that account's reports.
  */
-async function finish(item, containerId, ctx) {
-  const mediaId = await publishContainer(containerId, ctx.userId, ctx.token)
+async function finish(item, containerId, ctx, publishedId = null) {
+  // Facebook is already posted by the time it gets here, and Instagram's fast
+  // path publishes inside startPublish. Only a container picked up on a later
+  // run still needs the second step.
+  const mediaId = publishedId ?? (await publishContainer(containerId, ctx.userId, ctx.token))
 
   await recordPublished({
     mediaId,
@@ -101,7 +105,10 @@ async function advance(item) {
   // connected accounts, and publishing one as the other would be worse than
   // not publishing at all.
   const ctx = await resolveAccount(item.accountId, item.platform)
+  const platform = ctx.account.platform ?? item.platform ?? 'instagram'
 
+  // Only Instagram leaves a container behind to come back to; a Page post is
+  // finished the moment it is made.
   if (item.status === 'publishing' && item.containerId) {
     if (!(await isContainerReady(item.containerId, ctx.token))) {
       return { id: item.id, state: 'still-processing' }
@@ -109,30 +116,30 @@ async function advance(item) {
     return finish(item, item.containerId, ctx)
   }
 
-  const containerId = await createContainer(
-    {
+  // Counted before the attempt, not after: a run that dies mid-publish must
+  // still have spent an attempt, or a post that kills the function every time
+  // would be retried for ever.
+  await patchScheduled(item.id, { attempts: (item.attempts ?? 0) + 1 })
+
+  const started = await startPublish({
+    platform,
+    post: {
       imageUrl: item.imageUrl,
       imageUrls: item.imageUrls,
       videoUrl: item.videoUrl,
       caption: item.caption,
       postType: item.postType,
     },
-    ctx
-  )
-
-  // Written down before the readiness check: if this run dies right here, the
-  // next one finds the container instead of creating a second one.
-  await patchScheduled(item.id, {
-    status: 'publishing',
-    containerId,
-    attempts: (item.attempts ?? 0) + 1,
+    ctx,
   })
 
-  if (await isContainerReady(containerId, ctx.token)) {
-    return finish(item, containerId, ctx)
-  }
+  if (started.done) return finish(item, started.containerId, ctx, started.mediaId)
 
-  return { id: item.id, state: 'processing', containerId }
+  // Written down before anything else can fail: if this run dies right here,
+  // the next one finds the container instead of creating a second one.
+  await patchScheduled(item.id, { status: 'publishing', containerId: started.containerId })
+
+  return { id: item.id, state: 'processing', containerId: started.containerId }
 }
 
 export const handler = async (event) => {

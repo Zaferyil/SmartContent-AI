@@ -169,6 +169,16 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
 
   const targets = accounts.filter((a) => accountIds.includes(a.id))
 
+  // What each platform will take. Instagram does all four; a Facebook Page
+  // takes a photo post or a set of photos, and its stories and reels are
+  // separate APIs this app does not speak. Checked here so a channel that
+  // cannot carry the post is named before publishing, not after one half of a
+  // fan-out has already gone out.
+  const FACEBOOK_TAKES = ['FEED', 'CAROUSEL']
+  const unsupported = targets.filter(
+    (a) => a.platform === 'facebook' && !FACEBOOK_TAKES.includes(postType)
+  )
+
   // Instagram drops the caption on a story, so writing one is work that gets
   // thrown away. The screen was still built around it: publishing only appeared
   // once copy existed, which left a story with an uploaded image and no way to
@@ -626,6 +636,21 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                 {accountIds.length > 1 && (
                   <p className="mt-2 text-xs font-semibold text-slate-400">
                     {fill(t.create.targetCount, { n: accountIds.length })}
+                  </p>
+                )}
+
+                {/* Named before publishing. A fan-out runs one channel at a
+                    time, so a type the Page cannot take would otherwise be
+                    found out only after the Instagram half was already live. */}
+                {unsupported.length > 0 && (
+                  <p className="mt-2 flex items-start gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                    <AlertTriangle size={14} strokeWidth={2.5} className="mt-px shrink-0" />
+                    <span className="break-words">
+                      {fill(t.create.notOnFacebook, {
+                        type: t.create.postTypes[postType],
+                        channels: unsupported.map((a) => `@${a.username}`).join(', '),
+                      })}
+                    </span>
                   </p>
                 )}
               </>

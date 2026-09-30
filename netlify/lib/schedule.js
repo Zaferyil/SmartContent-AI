@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readDoc, updateDoc } from './store.js'
 import { MAX_CAROUSEL, MIN_CAROUSEL } from './instagram.js'
+import { supportsPostType } from './publish.js'
 
 const KEY = 'schedule'
 
@@ -45,8 +46,8 @@ export const STATUSES = ['draft', 'scheduled', 'publishing', 'published', 'faile
 
 export { MAX_CAROUSEL, MIN_CAROUSEL }
 
-/** Only Instagram has server-side credentials, so only it can actually publish. */
-export const PUBLISHABLE_PLATFORMS = ['instagram']
+/** The platforms this app holds credentials for and can actually publish to. */
+export const PUBLISHABLE_PLATFORMS = ['instagram', 'facebook']
 
 const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 })
 
@@ -116,6 +117,13 @@ function normalise(input, existing = null) {
     if (!next.scheduledFor) throw badRequest('A scheduled post needs a scheduledFor time')
     if (!PUBLISHABLE_PLATFORMS.includes(next.platform)) {
       throw badRequest(`Publishing to "${next.platform}" is not connected yet`)
+    }
+
+    // Refused now rather than at publishing time. A story queued to a Facebook
+    // Page would sit in the calendar looking fine until the cron reached it
+    // hours later and Meta turned it down.
+    if (!supportsPostType(next.platform, next.postType)) {
+      throw badRequest(`A ${next.postType} post cannot go to ${next.platform}`)
     }
 
     // Refused here rather than at publishing time: a carousel queued with one

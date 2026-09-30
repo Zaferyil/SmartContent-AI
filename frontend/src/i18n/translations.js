@@ -134,6 +134,8 @@ export const translations = {
         REELS: 'Reels',
       },
       storyNoCaption: 'In Storys erscheint kein Text — Instagram nimmt keine Bildunterschrift an.',
+      notOnFacebook:
+        '{channels} kann „{type}" nicht annehmen — Facebook-Seiten nehmen hier nur Beitrag und Karussell. Wähle einen anderen Kanal oder eine andere Beitragsart.',
       etsy: {
         pick: 'Produkt aus deinem Etsy-Shop wählen',
         title: 'Produkt wählen',
@@ -439,6 +441,12 @@ export const translations = {
       addTitle: 'Kanal hinzufügen',
       addHint:
         'Füge das Zugriffstoken aus deiner Meta-App ein. Die Konto-ID und der Benutzername werden automatisch von Instagram gelesen — du musst nichts weiter eintragen.',
+      addHintFacebook:
+        'Füge ein Token deiner Meta-App ein — entweder das Seiten-Token oder dein Nutzer-Token. Aus einem Nutzer-Token wird das Seiten-Token selbst ermittelt; Name und ID der Seite liest die App aus.',
+      platformLabel: 'Plattform',
+      pageId: 'Seiten-ID (optional)',
+      pageIdHint:
+        'Nur nötig, wenn dein Token mehrere Seiten verwaltet. Ist das so, nennt die Fehlermeldung die Seiten mit ihren IDs.',
       token: 'Zugriffstoken',
       checkAndConnect: 'Prüfen und verbinden',
       checking: 'Wird geprüft …',
@@ -453,6 +461,8 @@ export const translations = {
       expiresIn: 'Token läuft in {days} Tagen ab',
       expiresInEst: 'Token läuft in ca. {days} Tagen ab (geschätzt)',
       autoRefresh: 'Wird automatisch verlängert',
+      noAutoRefresh:
+        'Wird nicht automatisch verlängert — falls das Token abläuft, hier ein neues einfügen.',
       lastRefreshed: 'Zuletzt verlängert am {date}',
 
       stayConnectedTitle: 'Einmal verbinden, dauerhaft verbunden',
@@ -610,6 +620,8 @@ export const translations = {
         REELS: 'Reels',
       },
       storyNoCaption: 'Stories show no text — Instagram does not accept a caption.',
+      notOnFacebook:
+        '{channels} cannot take a “{type}” post — Facebook Pages take only Feed post and Carousel here. Pick another channel or another post type.',
       etsy: {
         pick: 'Choose a product from your Etsy shop',
         title: 'Choose a product',
@@ -914,6 +926,12 @@ export const translations = {
       addTitle: 'Add a channel',
       addHint:
         'Paste the access token from your Meta app. The account id and username are read back from Instagram automatically — there is nothing else to fill in.',
+      addHintFacebook:
+        'Paste a token from your Meta app — either the Page token or your user token. A user token is exchanged for the Page’s own token here, and the Page name and id are read back.',
+      platformLabel: 'Platform',
+      pageId: 'Page id (optional)',
+      pageIdHint:
+        'Only needed when your token manages several Pages. If it does, the error names them with their ids.',
       token: 'Access token',
       checkAndConnect: 'Check and connect',
       checking: 'Checking …',
@@ -928,6 +946,7 @@ export const translations = {
       expiresIn: 'Token expires in {days} days',
       expiresInEst: 'Token expires in roughly {days} days (estimated)',
       autoRefresh: 'Renewed automatically',
+      noAutoRefresh: 'Not renewed automatically — if the token expires, paste a new one here.',
       lastRefreshed: 'Last renewed on {date}',
 
       stayConnectedTitle: 'Connect once, stay connected',

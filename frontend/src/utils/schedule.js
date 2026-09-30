@@ -29,8 +29,8 @@ export const fetchStorageStatus = () => api('storage-status')
  * Connects an account from its token alone — the server reads back which
  * account it is and refuses a token it cannot identify.
  */
-export const addAccount = (token) =>
-  api('accounts-add', { body: { token } }).then((data) => data.account)
+export const addAccount = (token, platform = 'instagram', pageId = null) =>
+  api('accounts-add', { body: { token, platform, pageId } }).then((data) => data.account)
 
 export const removeAccount = (id) =>
   api('accounts-remove', { body: { id } }).then((data) => data.accounts)

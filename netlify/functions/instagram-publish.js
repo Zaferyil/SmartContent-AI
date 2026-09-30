@@ -1,16 +1,15 @@
-import {
-  json,
-  CORS,
-  createContainer,
-  isContainerReady,
-  publishContainer,
-} from '../lib/instagram.js'
+import { json, CORS } from '../lib/instagram.js'
+import { startPublish } from '../lib/publish.js'
 import { requireAuth } from '../lib/auth.js'
 import { resolveAccount } from '../lib/accounts.js'
 import { recordPublished } from '../lib/posts.js'
 
 /**
- * Publishes one post to Instagram, now.
+ * Publishes one post, now.
+ *
+ * Named for Instagram because that is all it could do when it was written; it
+ * now serves any connected platform and routes on the channel's own, so a
+ * Facebook Page and an Instagram account are the same request from the browser.
  *
  * POST body:
  *   { "accountId": "...", "imageUrl": "https://...", "caption": "...", "postType": "FEED" }
@@ -37,47 +36,50 @@ export const handler = async (event) => {
     }
 
     const { imageUrl, imageUrls, videoUrl, caption = '', postType = 'FEED', accountId } = body
-    const { id, token, userId } = await resolveAccount(accountId)
+    const { id, token, userId, account } = await resolveAccount(accountId)
+    const platform = account.platform ?? 'instagram'
 
-    // Step 1 — create the media container. For a carousel this is several
-    // child containers and a parent, which createContainer handles.
-    const containerId = await createContainer(
-      { imageUrl, imageUrls, videoUrl, caption, postType },
-      { token, userId }
-    )
+    const started = await startPublish({
+      platform,
+      post: { imageUrl, imageUrls, videoUrl, caption, postType },
+      ctx: { token, userId },
+    })
 
-    // Step 2 — one status check, never a wait loop. An image is normally ready
-    // straight away, so the common case finishes in this single request; when it
-    // is not, the caller polls instagram-publish-finish instead of this function
-    // sitting on the clock until Netlify cuts it off at 10s.
-    if (await isContainerReady(containerId, token)) {
-      const mediaId = await publishContainer(containerId, userId, token)
+    if (started.done) {
       // Recorded here rather than in the browser: a closed tab must not cost us
       // the history the analytics screens are built on.
       // A carousel has no single image; the first one is what the reports show.
       const thumbnail = imageUrl ?? imageUrls?.[0] ?? null
       await recordPublished({
-        mediaId,
+        mediaId: started.mediaId,
         accountId: id,
         imageUrl: thumbnail,
         videoUrl: videoUrl ?? null,
         caption,
         postType,
       }).catch((e) => console.error('Could not record the published post:', e.message))
-      return json(200, { ok: true, done: true, postType, mediaId, containerId, accountId: id })
+
+      return json(200, {
+        ok: true,
+        done: true,
+        postType,
+        mediaId: started.mediaId,
+        containerId: started.containerId,
+        accountId: id,
+      })
     }
 
     return json(202, {
       ok: true,
       done: false,
       postType,
-      containerId,
+      containerId: started.containerId,
       imageUrl: imageUrl ?? imageUrls?.[0] ?? null,
       caption,
       accountId: id,
     })
   } catch (error) {
-    console.error('Instagram publish failed:', error.message)
+    console.error('Publish failed:', error.message)
     return json(error.statusCode || 500, {
       ok: false,
       error: error.message,
