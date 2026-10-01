@@ -103,17 +103,48 @@ async function diagnose({ token, person, accountsError }) {
     )
   }
 
-  if (person) {
-    return (
-      `This token belongs to ${person}, not to a Page, and that account administers no Facebook Page. ` +
-      'A Page is what this app posts to — an Instagram business account is not one. ' +
-      'Create a Page, or use a token from an account that already administers one.'
-    )
-  }
+  const who = person ? `This token belongs to ${person}, not to a Page. ` : ''
 
-  return accountsError
-    ? `Facebook would not list any Page for this token: ${accountsError.message}`
-    : 'Facebook listed no Page for this token.'
+  /*
+   * What can honestly be said stops here.
+   *
+   * This used to end "and that account administers no Facebook Page", which
+   * the app has no way of knowing and which was flatly wrong for the first
+   * person who hit it — he administers several. Facebook returning an empty
+   * list is not the same fact: since granular Page consent, /me/accounts
+   * contains only the Pages ticked in the login dialog, so a Page the user
+   * owns is invisible here simply for not having been selected. Sending
+   * someone off to "create a Page" they already have is worse than saying
+   * nothing.
+   */
+  const couldNotAsk = scopes === null ? ' Facebook would not say which permissions it carries, either.' : ''
+
+  const why = accountsError
+    ? `Facebook would not list any Page for it: ${accountsError.message}`
+    : 'Facebook returned an empty list of Pages for it.'
+
+  return (
+    `${who}${why}${couldNotAsk} ` +
+    'That usually means the Page was not ticked when the token was authorised — the login dialog ' +
+    'asks which Pages to allow, and only those come back. Generate the token again and select the ' +
+    'Page there, or paste its Page ID into the field below so this app can ask for it by name.'
+  )
+}
+
+/**
+ * Asks for one Page by id, instead of looking for it in a list.
+ *
+ * Worth doing separately because the two are not equivalent. `/me/accounts`
+ * is filtered by the Page selection made in the login dialog, so a Page can
+ * be missing from it and still be perfectly reachable by id — and when it is
+ * genuinely out of reach, Facebook's error on the node names the reason,
+ * where the empty list said nothing at all.
+ */
+async function fetchPage(pageId, token) {
+  return fbGraph(String(pageId), {
+    params: { fields: 'id,name,access_token,tasks' },
+    token,
+  })
 }
 
 export async function identifyPage(token, pageId = null) {
@@ -147,6 +178,64 @@ export async function identifyPage(token, pageId = null) {
     accountsError = error
   }
 
+  /**
+   * A Page listed is not always a Page postable to. `tasks` says what this
+   * person may do on it — an editor or moderator has no CREATE_CONTENT — and
+   * without the check the channel connects happily and then refuses every
+   * post, days later, with an error about permissions on an edge.
+   */
+  const usable = (page, fallbackToken = null) => {
+    if (Array.isArray(page.tasks) && !page.tasks.includes('CREATE_CONTENT')) {
+      throw fail(
+        400,
+        `You can see the Page "${page.name}" but not post to it — your role there is ${
+          page.tasks.join(', ') || 'view only'
+        }. Posting needs the "Create content" task, which a Page admin can grant.`
+      )
+    }
+
+    // A Page's own token is preferred: it is what publishing needs and it
+    // outlives the user token it came from. Asking for a Page by id does not
+    // always return one, and then the token in hand is already the Page's.
+    const token = page.access_token ?? fallbackToken
+    if (!token) {
+      throw fail(
+        400,
+        `Facebook described the Page "${page.name ?? pageId}" but gave no access token for it. ` +
+          'Re-authorise the token with pages_manage_posts and select this Page in the dialog.'
+      )
+    }
+
+    return { externalId: String(page.id), username: page.name ?? null, token }
+  }
+
+  /*
+   * A named Page is looked for in two places, because the list is not the
+   * whole truth: /me/accounts shows only the Pages ticked when the token was
+   * authorised, while the Page node answers for any Page the token can reach.
+   * Asking by id is what lets someone connect a Page the dialog left out —
+   * the case that had this user stuck with a token that returned nothing.
+   */
+  if (pageId) {
+    const listed = pages.find((page) => String(page.id) === String(pageId))
+    if (listed) return usable(listed)
+
+    let direct
+    try {
+      direct = await fetchPage(pageId, trimmed)
+    } catch (error) {
+      const list = pages.map((page) => `${page.name} (${page.id})`).join(', ')
+      throw fail(
+        error.statusCode === 401 ? 401 : 400,
+        `This token cannot reach the Page ${pageId}: ${error.message}` +
+          (list ? ` It does reach: ${list}.` : ' It lists no Pages at all.') +
+          ' Generate the token again and tick this Page in the dialog that asks which Pages to allow.'
+      )
+    }
+
+    return usable(direct, trimmed)
+  }
+
   if (pages.length === 0) {
     let me
     try {
@@ -173,33 +262,6 @@ export async function identifyPage(token, pageId = null) {
     }
 
     throw fail(400, await diagnose({ token: trimmed, person, accountsError }))
-  }
-
-  /**
-   * A Page listed is not always a Page postable to. `tasks` says what this
-   * person may do on it — an editor or moderator has no CREATE_CONTENT — and
-   * without the check the channel connects happily and then refuses every
-   * post, days later, with an error about permissions on an edge.
-   */
-  const usable = (page) => {
-    if (Array.isArray(page.tasks) && !page.tasks.includes('CREATE_CONTENT')) {
-      throw fail(
-        400,
-        `You can see the Page "${page.name}" but not post to it — your role there is ${
-          page.tasks.join(', ') || 'view only'
-        }. Posting needs the "Create content" task, which a Page admin can grant.`
-      )
-    }
-    return { externalId: String(page.id), username: page.name ?? null, token: page.access_token }
-  }
-
-  if (pageId) {
-    const chosen = pages.find((page) => String(page.id) === String(pageId))
-    if (!chosen) {
-      const list = pages.map((page) => `${page.name} (${page.id})`).join(', ')
-      throw fail(400, `This token has no Page with id ${pageId}. It manages: ${list || 'none'}.`)
-    }
-    return usable(chosen)
   }
 
   if (pages.length > 1) {

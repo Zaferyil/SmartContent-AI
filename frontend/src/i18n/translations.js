@@ -447,7 +447,7 @@ export const translations = {
       platformLabel: 'Plattform',
       pageId: 'Seiten-ID (optional)',
       pageIdHint:
-        'Nur nötig, wenn dein Token mehrere Seiten verwaltet. Ist das so, nennt die Fehlermeldung die Seiten mit ihren IDs.',
+        'Nötig bei mehreren Seiten – und hilft, wenn deine Seite im Token nicht auftaucht: Mit der ID fragt die App die Seite direkt ab. Die ID steht auf der Seite unter „Über uns“ → „Seitentransparenz“.',
       token: 'Zugriffstoken',
       checkAndConnect: 'Prüfen und verbinden',
       checking: 'Wird geprüft …',
@@ -935,7 +935,7 @@ export const translations = {
       platformLabel: 'Platform',
       pageId: 'Page id (optional)',
       pageIdHint:
-        'Only needed when your token manages several Pages. If it does, the error names them with their ids.',
+        'Needed with several Pages — and it helps when your Page does not show up for the token: with the id the app asks for the Page directly. The id is under the Page’s About → Page transparency.',
       token: 'Access token',
       checkAndConnect: 'Check and connect',
       checking: 'Checking …',
