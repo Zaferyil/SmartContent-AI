@@ -140,7 +140,7 @@ export const translations = {
       pinterestTooMany:
         '{channels}: Ein Pin nimmt höchstens {max} Bilder. Entferne Bilder oder wähle den Kanal ab.',
       notOnFacebook:
-        '{channels} kann „{type}" nicht annehmen — Facebook-Seiten nehmen hier nur Beitrag und Karussell. Wähle einen anderen Kanal oder eine andere Beitragsart.',
+        '{channels} kann „{type}" nicht annehmen — Facebook-Seiten nehmen hier nur Beitrag, Karussell und Story (Foto). Wähle einen anderen Kanal oder eine andere Beitragsart.',
       etsy: {
         pick: 'Produkt aus deinem Etsy-Shop wählen',
         title: 'Produkt wählen',
@@ -638,7 +638,7 @@ export const translations = {
       pinterestTooMany:
         '{channels}: a Pin takes at most {max} images. Remove some images or untick the channel.',
       notOnFacebook:
-        '{channels} cannot take a “{type}” post — Facebook Pages take only Feed post and Carousel here. Pick another channel or another post type.',
+        '{channels} cannot take a “{type}” post — Facebook Pages take only Feed post, Carousel and photo Story here. Pick another channel or another post type.',
       etsy: {
         pick: 'Choose a product from your Etsy shop',
         title: 'Choose a product',

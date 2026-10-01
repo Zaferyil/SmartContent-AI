@@ -215,7 +215,8 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // separate APIs this app does not speak. Checked here so a channel that
   // cannot carry the post is named before publishing, not after one half of a
   // fan-out has already gone out.
-  const FACEBOOK_TAKES = ['FEED', 'CAROUSEL']
+  const FACEBOOK_TAKES = ['FEED', 'CAROUSEL', 'STORY']
+  const PINTEREST_TAKES = ['FEED', 'CAROUSEL']
   const unsupported = targets.filter(
     (a) => a.platform === 'facebook' && !FACEBOOK_TAKES.includes(postType)
   )
@@ -223,7 +224,7 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   // refused by Pinterest after the other half of a fan-out had already gone out.
   const PINTEREST_MAX = 5
   const pinterestTargets = targets.filter((a) => a.platform === 'pinterest')
-  const notOnPinterest = pinterestTargets.filter((a) => !FACEBOOK_TAKES.includes(postType))
+  const notOnPinterest = pinterestTargets.filter((a) => !PINTEREST_TAKES.includes(postType))
   const tooManyForPinterest =
     postType === 'CAROUSEL' && imageUrls.length > PINTEREST_MAX ? pinterestTargets : []
 

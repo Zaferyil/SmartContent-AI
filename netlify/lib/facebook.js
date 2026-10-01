@@ -285,10 +285,14 @@ export async function identifyPage(token, pageId = null) {
 export const FB_POST_TYPES = {
   FEED: true,
   CAROUSEL: true,
-  // Stories and Reels on a Page are separate APIs with their own upload
-  // protocols. Refusing them plainly beats sending a request Meta rejects with
-  // a message about a parameter the user never saw.
-  STORY: false,
+  // A photo story: the photo is uploaded unpublished and then handed to the
+  // Page's photo_stories edge. Needs no permission beyond the ones a feed post
+  // already does. Video stories use a resumable upload session and are not
+  // built here.
+  STORY: true,
+  // A Reel on a Page is its own upload protocol. Refusing it plainly beats
+  // sending a request Meta rejects with a message about a parameter the user
+  // never saw.
   REELS: false,
 }
 
@@ -317,10 +321,34 @@ export async function publishToPage({ imageUrl, imageUrls, caption = '', postTyp
   const photos = many ? (Array.isArray(imageUrls) ? imageUrls : []) : [imageUrl].filter(Boolean)
 
   if (photos.length === 0) throw fail(400, `${postType} needs an image`)
+  if (postType === 'STORY' && photos.length > 1) {
+    throw fail(400, 'A Facebook story takes one photo')
+  }
   if (photos.length > MAX_ATTACHED) {
     throw fail(400, `A Facebook post takes at most ${MAX_ATTACHED} photos`)
   }
   photos.forEach(requireHttps)
+
+  if (postType === 'STORY') {
+    // Unpublished first: a story is made from a photo that exists but is not a
+    // post. Published, it would also land on the Page's feed, and Facebook
+    // refuses a photo that has already been used in a published post.
+    const photo = await fbGraph(`${ctx.userId}/photos`, {
+      method: 'POST',
+      params: { url: photos[0], published: false },
+      token: ctx.token,
+    })
+
+    // A story carries no caption. Meta's story endpoint has no field for one.
+    const story = await fbGraph(`${ctx.userId}/photo_stories`, {
+      method: 'POST',
+      params: { photo_id: photo.id },
+      token: ctx.token,
+    })
+
+    if (!story.success && !story.post_id) throw fail(502, 'Facebook did not confirm the story')
+    return story.post_id ?? photo.id
+  }
 
   if (!many) {
     const posted = await fbGraph(`${ctx.userId}/photos`, {
