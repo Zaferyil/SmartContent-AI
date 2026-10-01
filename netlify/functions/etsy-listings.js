@@ -5,7 +5,8 @@ import { listActive } from '../lib/etsy.js'
 /**
  * The shop's live listings, newest first, for the Create screen to pick from.
  *
- * GET /etsy-listings?limit=24
+ * GET /etsy-listings            every active listing, up to a ceiling
+ * GET /etsy-listings?limit=24    only the newest 24
  *   -> 200 { ok, shop, total, complete, listings: [...] }
  *
  * Read-only: this reaches Etsy with the app keystring and can only ask for
@@ -20,9 +21,9 @@ export const handler = async (event) => {
     requireAuth(event)
 
     const asked = Number(event.queryStringParameters?.limit)
-    const limit = Number.isInteger(asked) && asked > 0 ? Math.min(asked, 100) : 24
+    const options = Number.isInteger(asked) && asked > 0 ? { limit: asked } : {}
 
-    return json(200, { ok: true, ...(await listActive({ limit })) })
+    return json(200, { ok: true, ...(await listActive(options)) })
   } catch (error) {
     console.error('Could not read the Etsy shop:', error.message)
     return json(error.statusCode || 500, { ok: false, error: error.message })

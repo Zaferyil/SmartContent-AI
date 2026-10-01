@@ -20,8 +20,7 @@ const CONFIG_VARS = {
   shopName: 'ETSY_SHOP_NAME',
 }
 
-// Etsy caps a page at 100, and asking for the maximum means a shop of ordinary
-// size arrives in one round trip and can be ordered exactly (see `listActive`).
+// Etsy caps a page at 100; asking for the maximum keeps the round trips few.
 const PAGE = 100
 
 // Meta's ceiling for a carousel, which is what several listing photos become.
@@ -122,50 +121,74 @@ const money = (price) =>
     ? { amount: price.amount / price.divisor, currency: price.currency_code ?? null }
     : null
 
+// A shop is read page by page, but not without end: a response has a size
+// ceiling too, and a picker nobody can scroll through is no use either. Beyond
+// this the result says it is partial rather than quietly stopping.
+const MAX_LISTINGS = 500
+
+// The batch endpoint documents "100 ids maximum per query".
+const BATCH = 100
+
 /**
  * The shop's live listings, newest first.
  *
  * Ordered here rather than by the API: Etsy's own `sort_on` documents itself as
  * working only alongside a search term, so asking for it without keywords is
  * asking for an order it does not promise. `created_timestamp` comes back on
- * every listing, so sorting on that is exact — as long as the whole shop fits
- * in one page, which is what `total` is reported for.
+ * every listing, so sorting on that is exact once every page has been read.
+ *
+ * Every page, not the first: a page is at most 100, and this used to read just
+ * one and then cut it to 24, so a shop with more than that showed only its
+ * newest few and the rest could not be picked at all.
  */
-export async function listActive({ limit = 24 } = {}) {
+export async function listActive({ limit = MAX_LISTINGS } = {}) {
   const config = requireConfig()
   const shop = await resolveShop(config)
 
-  const page = await etsy(`shops/${shop.shop_id}/listings/active`, {
-    params: { limit: PAGE },
-    apiKey: config.apiKey,
-  })
+  const all = []
+  let total = null
 
-  const all = page.results ?? []
+  while (all.length < MAX_LISTINGS) {
+    const page = await etsy(`shops/${shop.shop_id}/listings/active`, {
+      params: { limit: PAGE, offset: all.length },
+      apiKey: config.apiKey,
+    })
+
+    const results = page.results ?? []
+    total = page.count ?? total
+    all.push(...results)
+
+    // An empty or short page is the end, whatever `count` claims.
+    if (results.length < PAGE || (total !== null && all.length >= total)) break
+  }
+
   const newest = all
     .slice()
     .sort((a, b) => (b.created_timestamp ?? 0) - (a.created_timestamp ?? 0))
     .slice(0, limit)
 
   // One request for every listing's images would be one request per card. The
-  // batch endpoint takes the ids and the images together.
-  const withImages = newest.length
-    ? await etsy('listings/batch', {
-        params: {
-          listing_ids: newest.map((l) => l.listing_id).join(','),
-          includes: 'Images',
-        },
+  // batch endpoint takes the ids and the images together, a hundred at a time.
+  const chunks = []
+  for (let i = 0; i < newest.length; i += BATCH) chunks.push(newest.slice(i, i + BATCH))
+
+  const batches = await Promise.all(
+    chunks.map((chunk) =>
+      etsy('listings/batch', {
+        params: { listing_ids: chunk.map((l) => l.listing_id).join(','), includes: 'Images' },
         apiKey: config.apiKey,
       })
-    : { results: [] }
+    )
+  )
 
-  const byId = new Map((withImages.results ?? []).map((l) => [l.listing_id, l]))
+  const byId = new Map(batches.flatMap((b) => b.results ?? []).map((l) => [l.listing_id, l]))
 
   return {
     shop: { id: shop.shop_id, name: shop.shop_name, url: shop.url ?? null },
-    total: page.count ?? all.length,
-    // Says plainly when the shop is larger than one page, because then "newest"
-    // is newest among what was read, not newest in the shop.
-    complete: all.length >= (page.count ?? all.length),
+    total: total ?? all.length,
+    // False when the shop holds more than was read — then "newest" is newest
+    // among what came back, and the picker says so.
+    complete: all.length >= (total ?? all.length),
     listings: newest.map((listing) => {
       const full = byId.get(listing.listing_id) ?? listing
       return {
