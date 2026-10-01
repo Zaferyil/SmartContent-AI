@@ -210,6 +210,19 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
 
   const targets = accounts.filter((a) => accountIds.includes(a.id))
 
+  // Named after where it will go. One channel says which platform; several say
+  // how many; none picked yet says only "publish". The button used to read
+  // "Publish to Instagram" whatever was ticked, which on a Facebook-only post
+  // was a promise about the wrong platform.
+  const publishLabel =
+    targets.length > 1
+      ? fill(t.create.media.publishToAll, { n: targets.length })
+      : targets.length === 1
+        ? fill(t.create.media.publish, {
+            platform: getPlatform(targets[0].platform)?.name ?? targets[0].platform,
+          })
+        : t.create.media.publishGeneric
+
   // What each platform will take. Instagram does all four; a Facebook Page
   // takes a photo post or a set of photos, and its stories and reels are
   // separate APIs this app does not speak. Checked here so a channel that
@@ -910,9 +923,7 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
               ) : (
                 <>
                   <Send size={18} strokeWidth={2.5} />
-                  {targets.length > 1
-                    ? fill(t.create.media.publishToAll, { n: targets.length })
-                    : t.create.media.publish}
+                  {publishLabel}
                 </>
               )}
             </button>
