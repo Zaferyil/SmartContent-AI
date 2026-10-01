@@ -11,11 +11,13 @@ import { addAccount } from '../lib/accounts.js'
  *
  * POST { "token": "IGQ..." }                                   Instagram
  * POST { "platform": "facebook", "token": "EAA...", "pageId": "123" }
+ * POST { "platform": "pinterest", "token": "pina_...", "pageId": "456" }
  *   -> 200 { ok: true, account }
  *
  * `pageId` is only needed when a Facebook token manages several Pages: with
  * one it is worked out, and with several the error names them rather than
- * guessing which audience to publish to.
+ * guessing which audience to publish to. For Pinterest the same field carries
+ * the board id.
  */
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
@@ -34,7 +36,7 @@ export const handler = async (event) => {
     const account = await addAccount({
       platform: body.platform,
       token: body.token,
-      pageId: body.pageId,
+      targetId: body.pageId,
     })
     return json(200, { ok: true, account })
   } catch (error) {

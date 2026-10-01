@@ -135,6 +135,10 @@ export const translations = {
         REELS: 'Reels',
       },
       storyNoCaption: 'In Storys erscheint kein Text — Instagram nimmt keine Bildunterschrift an.',
+      notOnPinterest:
+        '{channels} kann „{type}" nicht annehmen — Pinterest nimmt hier nur Beitrag und Karussell. Wähle einen anderen Kanal oder eine andere Beitragsart.',
+      pinterestTooMany:
+        '{channels}: Ein Pin nimmt höchstens {max} Bilder. Entferne Bilder oder wähle den Kanal ab.',
       notOnFacebook:
         '{channels} kann „{type}" nicht annehmen — Facebook-Seiten nehmen hier nur Beitrag und Karussell. Wähle einen anderen Kanal oder eine andere Beitragsart.',
       etsy: {
@@ -444,6 +448,11 @@ export const translations = {
         'Füge das Zugriffstoken aus deiner Meta-App ein. Die Konto-ID und der Benutzername werden automatisch von Instagram gelesen — du musst nichts weiter eintragen.',
       addHintFacebook:
         'Füge ein Token deiner Meta-App ein — entweder das Seiten-Token oder dein Nutzer-Token. Aus einem Nutzer-Token wird das Seiten-Token selbst ermittelt; Name und ID der Seite liest die App aus.',
+      addHintPinterest:
+        'Füge ein Zugriffstoken deiner Pinterest-App ein (Rechte boards:read und pins:write). Ein Pin gehört immer zu einem Board — gibt es mehrere, nenne unten die Board-ID.',
+      boardId: 'Board-ID (optional)',
+      boardIdHint:
+        'Nötig bei mehreren Boards. Ist das so, nennt die Fehlermeldung die Boards mit ihren IDs.',
       platformLabel: 'Plattform',
       pageId: 'Seiten-ID (optional)',
       pageIdHint:
@@ -624,6 +633,10 @@ export const translations = {
         REELS: 'Reels',
       },
       storyNoCaption: 'Stories show no text — Instagram does not accept a caption.',
+      notOnPinterest:
+        '{channels} cannot take a “{type}” post — Pinterest takes only Feed post and Carousel here. Pick another channel or another post type.',
+      pinterestTooMany:
+        '{channels}: a Pin takes at most {max} images. Remove some images or untick the channel.',
       notOnFacebook:
         '{channels} cannot take a “{type}” post — Facebook Pages take only Feed post and Carousel here. Pick another channel or another post type.',
       etsy: {
@@ -932,6 +945,11 @@ export const translations = {
         'Paste the access token from your Meta app. The account id and username are read back from Instagram automatically — there is nothing else to fill in.',
       addHintFacebook:
         'Paste a token from your Meta app — either the Page token or your user token. A user token is exchanged for the Page’s own token here, and the Page name and id are read back.',
+      addHintPinterest:
+        'Paste an access token from your Pinterest app (scopes boards:read and pins:write). A Pin always belongs to a board — with several, add the board id below.',
+      boardId: 'Board id (optional)',
+      boardIdHint:
+        'Needed when the token sees several boards. If it does, the error names them with their ids.',
       platformLabel: 'Platform',
       pageId: 'Page id (optional)',
       pageIdHint:

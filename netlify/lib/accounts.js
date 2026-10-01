@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readDoc, updateDoc } from './store.js'
 import { graph, envCredentials } from './instagram.js'
 import { identifyPage } from './facebook.js'
+import { identifyBoard } from './pinterest.js'
 
 const KEY = 'accounts'
 
@@ -179,9 +180,9 @@ export async function resolveAccount(accountId, platform = 'instagram') {
   return { id: account.id, token: account.token, userId: account.externalId, account }
 }
 
-const SUPPORTED = ['instagram', 'facebook']
+const SUPPORTED = ['instagram', 'facebook', 'pinterest']
 
-export async function addAccount({ platform = 'instagram', token, pageId = null }) {
+export async function addAccount({ platform = 'instagram', token, targetId = null }) {
   if (!SUPPORTED.includes(platform)) {
     throw fail(400, `Adding "${platform}" accounts is not supported yet`)
   }
@@ -198,8 +199,20 @@ export async function addAccount({ platform = 'instagram', token, pageId = null 
    * asserting something nobody told it. Unknown is left as null, and the
    * refresh loop already skips anything that is not Instagram.
    */
+  /*
+   * `targetId` is the Facebook Page or the Pinterest board — whichever the
+   * platform needs named when the token reaches more than one. Both behave
+   * like Facebook here: the token is stored as resolved, and its expiry is
+   * unknown rather than invented.
+   */
   const isFacebook = platform === 'facebook'
-  const resolved = isFacebook ? await identifyPage(token, pageId) : await identify(token)
+  const ownToken = platform !== 'instagram'
+  const resolved =
+    platform === 'facebook'
+      ? await identifyPage(token, targetId)
+      : platform === 'pinterest'
+        ? await identifyBoard(token, targetId)
+        : await identify(token)
 
   const identity = {
     externalId: resolved.externalId,
@@ -218,12 +231,12 @@ export async function addAccount({ platform = 'instagram', token, pageId = null 
       id: existing?.id ?? randomUUID(),
       platform,
       ...identity,
-      token: isFacebook ? resolved.token : String(token).trim(),
+      token: ownToken ? resolved.token : String(token).trim(),
       tokenAddedAt: new Date().toISOString(),
-      tokenExpiresAt: isFacebook
+      tokenExpiresAt: ownToken
         ? null
         : new Date(Date.now() + ASSUMED_LIFETIME_MS).toISOString(),
-      expiryEstimated: !isFacebook,
+      expiryEstimated: !ownToken,
       lastError: null,
     }
 

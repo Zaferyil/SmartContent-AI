@@ -1,5 +1,6 @@
 import { createContainer, isContainerReady, publishContainer, POST_TYPES } from './instagram.js'
 import { publishToPage, FB_POST_TYPES } from './facebook.js'
+import { publishToBoard, PIN_POST_TYPES } from './pinterest.js'
 
 /**
  * One place that knows which platform publishes how.
@@ -17,13 +18,15 @@ import { publishToPage, FB_POST_TYPES } from './facebook.js'
  *              so this can hand back a containerId to finish later.
  *   Facebook   the Page takes the photo and posts it in one request. There is
  *              nothing to wait for and never a containerId.
+ *   Pinterest  the Pin is created on a board in one request, likewise.
  */
+
+const TYPES = { facebook: FB_POST_TYPES, pinterest: PIN_POST_TYPES }
+const NAMES = { facebook: 'Facebook Pages', pinterest: 'Pinterest' }
 
 /** What each platform will accept, so a post is refused here and not at Meta. */
 export function supportsPostType(platform, postType) {
-  return platform === 'facebook'
-    ? Boolean(FB_POST_TYPES[postType])
-    : Boolean(POST_TYPES[postType])
+  return Boolean((TYPES[platform] ?? POST_TYPES)[postType])
 }
 
 /**
@@ -37,8 +40,8 @@ export async function startPublish({ platform = 'instagram', post, ctx }) {
   if (!supportsPostType(platform, post.postType)) {
     throw Object.assign(
       new Error(
-        platform === 'facebook'
-          ? `Facebook Pages cannot take a ${post.postType} post from this app yet.`
+        NAMES[platform]
+          ? `${NAMES[platform]} cannot take a ${post.postType} post from this app yet.`
           : `Unknown postType "${post.postType}".`
       ),
       { statusCode: 400 }
@@ -47,6 +50,11 @@ export async function startPublish({ platform = 'instagram', post, ctx }) {
 
   if (platform === 'facebook') {
     const mediaId = await publishToPage(post, ctx)
+    return { done: true, mediaId, containerId: null }
+  }
+
+  if (platform === 'pinterest') {
+    const mediaId = await publishToBoard(post, ctx)
     return { done: true, mediaId, containerId: null }
   }
 

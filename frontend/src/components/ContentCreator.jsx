@@ -219,6 +219,13 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
   const unsupported = targets.filter(
     (a) => a.platform === 'facebook' && !FACEBOOK_TAKES.includes(postType)
   )
+  // A Pin takes a photo or two to five of them; Instagram's ten would be
+  // refused by Pinterest after the other half of a fan-out had already gone out.
+  const PINTEREST_MAX = 5
+  const pinterestTargets = targets.filter((a) => a.platform === 'pinterest')
+  const notOnPinterest = pinterestTargets.filter((a) => !FACEBOOK_TAKES.includes(postType))
+  const tooManyForPinterest =
+    postType === 'CAROUSEL' && imageUrls.length > PINTEREST_MAX ? pinterestTargets : []
 
   // Instagram drops the caption on a story, so writing one is work that gets
   // thrown away. The screen was still built around it: publishing only appeared
@@ -722,6 +729,21 @@ export default function ContentCreator({ selected, accounts = [], notify, onGoTo
                     </span>
                   </p>
                 )}
+
+                {[
+                  [notOnPinterest, fill(t.create.notOnPinterest, { type: t.create.postTypes[postType], channels: notOnPinterest.map((a) => `@${a.username}`).join(', ') })],
+                  [tooManyForPinterest, fill(t.create.pinterestTooMany, { max: PINTEREST_MAX, channels: tooManyForPinterest.map((a) => `@${a.username}`).join(', ') })],
+                ]
+                  .filter(([list]) => list.length > 0)
+                  .map(([, message]) => (
+                    <p
+                      key={message}
+                      className="mt-2 flex items-start gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"
+                    >
+                      <AlertTriangle size={14} strokeWidth={2.5} className="mt-px shrink-0" />
+                      <span className="break-words">{message}</span>
+                    </p>
+                  ))}
               </>
             )}
           </div>

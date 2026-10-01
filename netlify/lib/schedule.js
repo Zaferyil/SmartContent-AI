@@ -47,7 +47,7 @@ export const STATUSES = ['draft', 'scheduled', 'publishing', 'published', 'faile
 export { MAX_CAROUSEL, MIN_CAROUSEL }
 
 /** The platforms this app holds credentials for and can actually publish to. */
-export const PUBLISHABLE_PLATFORMS = ['instagram', 'facebook']
+export const PUBLISHABLE_PLATFORMS = ['instagram', 'facebook', 'pinterest']
 
 const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 })
 

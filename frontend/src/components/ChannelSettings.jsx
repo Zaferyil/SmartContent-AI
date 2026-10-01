@@ -27,7 +27,11 @@ import ScreenHeader from './ScreenHeader'
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
 
-const TOKEN_HELP = 'https://developers.facebook.com/apps/'
+const TOKEN_HELP = {
+  instagram: 'https://developers.facebook.com/apps/',
+  facebook: 'https://developers.facebook.com/tools/explorer/',
+  pinterest: 'https://developers.pinterest.com/apps/',
+}
 
 /**
  * The connected accounts.
@@ -302,7 +306,7 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
           </div>
 
           <p className="mb-4 text-[13px] text-slate-500">
-            {platform === 'facebook' ? s.addHintFacebook : s.addHint}
+            {platform === 'facebook' ? s.addHintFacebook : platform === 'pinterest' ? s.addHintPinterest : s.addHint}
           </p>
 
           {/* Asked first, because it decides what the token below has to be —
@@ -310,7 +314,7 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
               from different pages of the Meta dashboard. */}
           <span className="label">{s.platformLabel}</span>
           <div className="mb-4 flex flex-wrap gap-2">
-            {['instagram', 'facebook'].map((id) => {
+            {['instagram', 'facebook', 'pinterest'].map((id) => {
               const p = getPlatform(id)
               const active = platform === id
               return (
@@ -340,17 +344,17 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
             rows={3}
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder={platform === 'facebook' ? 'EAA...' : 'IGQ...'}
+            placeholder={platform === 'facebook' ? 'EAA...' : platform === 'pinterest' ? 'pina_...' : 'IGQ...'}
             className="field resize-y font-mono text-[13px]"
           />
 
           {/* Optional, and said to be. One Page needs nothing here; several
               Pages need to be told apart, and the error names them with their
               ids when that happens. */}
-          {platform === 'facebook' && (
+          {(platform === 'facebook' || platform === 'pinterest') && (
             <>
               <label className="label mt-3" htmlFor="pageId">
-                {s.pageId}
+                {platform === 'pinterest' ? s.boardId : s.pageId}
               </label>
               <input
                 id="pageId"
@@ -359,7 +363,9 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
                 placeholder="123456789012345"
                 className="field font-mono text-[13px]"
               />
-              <p className="mt-1 text-xs font-semibold text-slate-400">{s.pageIdHint}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-400">
+                {platform === 'pinterest' ? s.boardIdHint : s.pageIdHint}
+              </p>
             </>
           )}
 
@@ -380,7 +386,7 @@ export default function ChannelSettings({ notify, onAccountsChanged }) {
           </button>
 
           <a
-            href={TOKEN_HELP}
+            href={TOKEN_HELP[platform] ?? TOKEN_HELP.instagram}
             target="_blank"
             rel="noreferrer"
             className="mt-3 flex items-center justify-center gap-1.5 text-xs font-bold text-brand-600 hover:underline"
