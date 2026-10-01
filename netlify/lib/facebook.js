@@ -141,8 +141,11 @@ async function diagnose({ token, person, accountsError }) {
  * where the empty list said nothing at all.
  */
 async function fetchPage(pageId, token) {
+  // No `tasks` here: that field exists on the entries of /me/accounts and not
+  // on the Page node, and asking for it makes Facebook reject the whole call
+  // with "nonexisting field" — which read as the Page being unreachable.
   return fbGraph(String(pageId), {
-    params: { fields: 'id,name,access_token,tasks' },
+    params: { fields: 'id,name,access_token' },
     token,
   })
 }
