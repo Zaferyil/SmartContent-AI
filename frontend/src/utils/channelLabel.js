@@ -26,3 +26,18 @@ export function channelLabel(account, all = []) {
   const platform = getPlatform(account.platform)
   return ambiguous ? `@${handle} · ${platform?.name ?? account.platform}` : `@${handle}`
 }
+
+/**
+ * A channel with its platform spelled out, always.
+ *
+ * `channelLabel` names the platform only when two channels would otherwise read
+ * alike. In a row of filter buttons that is not enough: the icon is the only
+ * other clue, and a camera and a thumbs-up do not say "Instagram" and
+ * "Facebook" to anyone who has not memorised them. Where the buttons are what
+ * a person scans to pick a channel, the platform is written out every time.
+ */
+export function channelWithPlatform(account) {
+  const handle = account.username ?? account.externalId
+  const platform = getPlatform(account.platform)
+  return platform ? `@${handle} · ${platform.name}` : `@${handle}`
+}

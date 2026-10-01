@@ -5,6 +5,7 @@ import { useLanguage } from '../../i18n/LanguageContext'
 import { getPlatform } from '../../data/platforms'
 import { addDays, toDateInput } from '../../utils/calendar'
 import { GOALS, planSlots, STRATEGIES } from '../../utils/aiSchedule'
+import { channelWithPlatform } from '../../utils/channelLabel'
 
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
@@ -160,7 +161,7 @@ export default function AiScheduleModal({
                     }`}
                   >
                     {p && <span className="text-sm leading-none">{p.icon}</span>}
-                    @{account.username ?? account.externalId}
+                    {channelWithPlatform(account)}
                   </button>
                 )
               })}

@@ -23,6 +23,7 @@ import {
   summarise,
 } from '../utils/postAnalytics'
 import ScreenHeader from './ScreenHeader'
+import { channelWithPlatform } from '../utils/channelLabel'
 
 // One sequential hue for every bar. Which band a row is stays in its label, so
 // the chart still reads correctly in greyscale. Validated ≥3:1 on the card.
@@ -172,7 +173,7 @@ export default function Analytics({ accounts = [], notify, onGoToCreate }) {
               >
                 {account.id === 'all'
                   ? t.schedule.allChannels
-                  : `@${account.username ?? account.externalId}`}
+                  : channelWithPlatform(account)}
               </button>
             )
           })}

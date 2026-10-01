@@ -13,6 +13,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { fetchComments, replyToComment } from '../utils/comments'
 import Conversations from './inbox/Conversations'
 import ScreenHeader from './ScreenHeader'
+import { channelWithPlatform } from '../utils/channelLabel'
 
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
@@ -359,7 +360,7 @@ export default function Inbox({ accounts = [], notify }) {
                     : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300'
                 }`}
               >
-                {account.id === 'all' ? account.username : `@${account.username}`}
+                {account.id === 'all' ? account.username : channelWithPlatform(account)}
               </button>
             )
           })}

@@ -31,6 +31,7 @@ import PostDrawer from './calendar/PostDrawer'
 import AiScheduleModal from './calendar/AiScheduleModal'
 import PublishingSettings from './calendar/PublishingSettings'
 import StatusChip from './calendar/StatusChip'
+import { channelWithPlatform } from '../utils/channelLabel'
 
 const VIEWS = ['day', 'week', 'month', 'list']
 
@@ -420,7 +421,7 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
                 }`}
               >
                 {platform && <span className="text-sm leading-none">{platform.icon}</span>}
-                {account.id === 'all' ? c.allChannels : `@${account.username ?? account.externalId}`}
+                {account.id === 'all' ? c.allChannels : channelWithPlatform(account)}
               </button>
             )
           })}
