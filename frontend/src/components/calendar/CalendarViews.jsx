@@ -1,7 +1,17 @@
 import React from 'react'
-import { Plus } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Film, Image as ImageIcon, Plus, X } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
-import { addDays, isToday, monthGrid, sameDay, startOfDay, weekDays } from '../../utils/calendar'
+import { getPlatform } from '../../data/platforms'
+import {
+  addDays,
+  isToday,
+  monthGrid,
+  sameDay,
+  startOfDay,
+  toTimeInput,
+  weekDays,
+} from '../../utils/calendar'
 import PostCard from './PostCard'
 import { STATUS_LOOKS } from './StatusChip'
 
@@ -178,10 +188,119 @@ export function DayView({ items, anchor, settings, onOpen, onDropPost, onAdd }) 
   )
 }
 
+/**
+ * Every post of one day, with its time and picture.
+ *
+ * A month cell shows two and says "+N more", which left the rest unreachable
+ * from here — the only way to see them was to switch to the week or the day.
+ * This opens from that line and lists them all; choosing one hands it to the
+ * same editor a card opens.
+ */
+function DayPosts({ day, items, onOpen, onAdd, onClose }) {
+  const { t, language } = useLanguage()
+
+  React.useEffect(() => {
+    const onKey = (event) => event.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return createPortal(
+    // Below the post editor (z-[60]), which opens on top of this one.
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-extrabold tracking-tight">
+              {new Intl.DateTimeFormat(language, { dateStyle: 'full' }).format(day)}
+            </h2>
+            <p className="text-xs font-semibold text-slate-400">{items.length}</p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label={t.common.close}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X size={18} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        <ul className="flex-1 space-y-2 overflow-y-auto p-4">
+          {items.map((item) => {
+            const platform = getPlatform(item.platform)
+            const look = STATUS_LOOKS[item.status] ?? STATUS_LOOKS.draft
+            const picture = item.imageUrl ?? item.imageUrls?.[0] ?? null
+            const preview = item.caption?.replace(/\s+/g, ' ').trim()
+
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    onOpen(item)
+                  }}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-2.5 text-left transition-all hover:border-brand-300 hover:shadow-md"
+                >
+                  <span className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-100 text-slate-300">
+                    {picture ? (
+                      <img src={picture} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    ) : (
+                      // Only a reel is a video; a post with no picture yet is not.
+                      item.postType === 'REELS' ? (
+                        <Film size={20} strokeWidth={2.5} />
+                      ) : (
+                        <ImageIcon size={20} strokeWidth={2.5} />
+                      )
+                    )}
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden className={`h-3.5 w-1 shrink-0 rounded-full ${look.className.split(' ')[0]}`} />
+                      <span className="text-sm font-extrabold tabular-nums text-slate-700">
+                        {item.scheduledFor ? toTimeInput(item.scheduledFor) : '—'}
+                      </span>
+                      {platform && <span className="text-sm leading-none">{platform.icon}</span>}
+                      <span className="text-[11px] font-bold text-slate-400">
+                        {t.schedule.status?.[item.status] ?? item.status}
+                      </span>
+                    </span>
+                    <span className="mt-1 line-clamp-2 max-h-[2.75em] overflow-hidden text-xs leading-snug text-slate-500">
+                      {preview || '—'}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+
+        <div className="border-t border-slate-100 p-3">
+          <button
+            onClick={() => {
+              onClose()
+              onAdd(day)
+            }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-2 text-sm font-bold text-slate-500 transition-colors hover:border-brand-300 hover:text-brand-600"
+          >
+            <Plus size={14} strokeWidth={3} />
+            {t.schedule.createPost}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 export function MonthView({ items, anchor, onOpen, onDropPost, onAdd, onPickDay }) {
   const { t, language } = useLanguage()
   const days = monthGrid(anchor)
   const month = anchor.getMonth()
+  const [openDay, setOpenDay] = React.useState(null)
 
   // One letter on a phone: "Mo Di Mi" in a 50px column wraps and pushes the
   // grid out of alignment, and the column position already says which day it is.
@@ -289,9 +408,13 @@ export function MonthView({ items, anchor, onOpen, onDropPost, onAdd, onPickDay 
                 </div>
 
                 {dayItems.length > shown.length && (
-                  <p className="mt-1 hidden px-1 text-[10px] font-bold text-slate-400 md:block">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDay(day)}
+                    className="mt-1 hidden rounded-md px-1 text-left text-[10px] font-bold text-brand-600 hover:bg-brand-50 hover:underline md:block"
+                  >
                     {t.schedule.morePosts.replace('{n}', dayItems.length - shown.length)}
-                  </p>
+                  </button>
                 )}
 
                 {/* The same add button the week has. The date used to be the
@@ -310,6 +433,16 @@ export function MonthView({ items, anchor, onOpen, onDropPost, onAdd, onPickDay 
             )
           })}
       </div>
+
+      {openDay && (
+        <DayPosts
+          day={openDay}
+          items={onDay(items, openDay)}
+          onOpen={onOpen}
+          onAdd={onAdd}
+          onClose={() => setOpenDay(null)}
+        />
+      )}
     </div>
   )
 }
