@@ -21,7 +21,10 @@ export const handler = async (event) => {
 
     const wanted = event.queryStringParameters?.accountId
     const accounts = await listAccounts()
-    const chosen = wanted ? accounts.filter((a) => a.id === wanted) : accounts
+    // Only Instagram has messages this app can read; see comments-list.
+    const chosen = wanted
+      ? accounts.filter((a) => a.id === wanted)
+      : accounts.filter((a) => a.platform === 'instagram')
 
     if (chosen.length === 0) {
       return json(200, { ok: true, conversations: [], channels: [] })
@@ -30,6 +33,11 @@ export const handler = async (event) => {
     const results = await Promise.all(
       chosen.map(async (account) => {
         try {
+          if (account.platform !== 'instagram') {
+            throw new Error(
+              'Messages on this channel are not read by this app yet — only Instagram messages are. Answer them in Facebook itself.'
+            )
+          }
           const { token } = await resolveAccount(account.id, account.platform)
           const found = await listForAccount(account, token)
           return { account, ...found, error: null }

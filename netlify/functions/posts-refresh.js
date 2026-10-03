@@ -65,7 +65,11 @@ export const handler = async (event) => {
     for (const [accountKey, bucket] of byAccount) {
       let token
       try {
-        ;({ token } = await resolveAccount(accountKey === '__default__' ? null : accountKey))
+        const resolved = await resolveAccount(accountKey === '__default__' ? null : accountKey)
+        // The numbers come from Instagram's insights API; a Page's token is not
+        // valid there, and every post would be counted as a failure.
+        if (resolved.account.platform !== 'instagram') continue
+        token = resolved.token
       } catch (error) {
         // A disconnected account is no reason to abandon the others.
         failures.push({ accountId: accountKey, error: error.message })

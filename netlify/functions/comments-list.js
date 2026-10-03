@@ -22,7 +22,13 @@ export const handler = async (event) => {
 
     const wanted = event.queryStringParameters?.accountId
     const accounts = await listAccounts()
-    const chosen = wanted ? accounts.filter((a) => a.id === wanted) : accounts
+    // Only Instagram has comments this app can read. A Facebook Page's token
+    // sent to Instagram's API comes back as "Cannot parse access token", which
+    // reads like a broken token when the token is fine. Under "all channels"
+    // such a channel is left out; asked for by name, it is told why.
+    const chosen = wanted
+      ? accounts.filter((a) => a.id === wanted)
+      : accounts.filter((a) => a.platform === 'instagram')
 
     if (chosen.length === 0) {
       return json(200, { ok: true, comments: [], channels: [] })
@@ -31,6 +37,11 @@ export const handler = async (event) => {
     const results = await Promise.all(
       chosen.map(async (account) => {
         try {
+          if (account.platform !== 'instagram') {
+            throw new Error(
+              'Comments on this channel are not read by this app yet — only Instagram comments are. Reply to them on Facebook itself.'
+            )
+          }
           const { token } = await resolveAccount(account.id, account.platform)
           const found = await listForAccount(account, token)
           return { account, ...found, error: null }
