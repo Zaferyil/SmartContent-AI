@@ -508,12 +508,15 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
         <>
           <div className="mb-5">
             <h3 className="mb-3 text-sm font-extrabold text-slate-700">{c.queueTitle}</h3>
-            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {/* grid-cols-1 is minmax(0,1fr); the implicit track a bare `grid`
+                makes is `auto`, which grows to the widest caption and pushed the
+                whole page sideways on a phone. min-w-0 lets the truncate work. */}
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {queue.slice(0, 6).map((item) => (
-                <li key={item.id}>
+                <li key={item.id} className="min-w-0">
                   <button
                     onClick={() => setDrawerItem(item)}
-                    className="card flex w-full items-center gap-3 p-3 text-left transition-shadow hover:shadow-lg"
+                    className="card flex w-full min-w-0 items-center gap-3 p-3 text-left transition-shadow hover:shadow-lg"
                   >
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-base">
                       {getPlatform(item.platform)?.icon ?? '•'}
@@ -525,6 +528,13 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
                       <span className="block truncate text-xs text-slate-500">
                         {item.caption?.replace(/\s+/g, ' ').trim() || '—'}
                       </span>
+                      {/* Why a post did not go out, where it is seen. It used to
+                          be readable only by opening the post. */}
+                      {item.error && (
+                        <span className="mt-0.5 block truncate text-[11px] font-semibold text-rose-600">
+                          {item.error}
+                        </span>
+                      )}
                     </span>
                     <StatusChip status={item.status} />
                   </button>
