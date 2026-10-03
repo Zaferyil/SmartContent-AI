@@ -165,6 +165,10 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
   const publishNow = async (item) => {
     const mediaId = await publishPost({
       imageUrl: item.imageUrl,
+      // A carousel — an Etsy listing with several photos becomes one — lives in
+      // imageUrls. Leaving it out sent the server a post with a single image
+      // field and no list, which it rightly refused as "needs an image".
+      imageUrls: item.imageUrls,
       caption: item.caption,
       postType: item.postType,
       accountId: item.accountId ?? fallbackAccountId,
