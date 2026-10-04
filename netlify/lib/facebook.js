@@ -24,7 +24,11 @@ const fail = (statusCode, message) => Object.assign(new Error(message), { status
 /** Calls the Graph API and turns Meta's error envelope into a real Error. */
 export async function fbGraph(path, { method = 'GET', params = {}, token } = {}) {
   const url = new URL(`${HOST}/${API_VERSION}/${path}`)
-  const payload = { ...params, access_token: token }
+  // Undefined entries are dropped: URLSearchParams would send the text
+  // "undefined", which for access_token is an invalid token, not an absent one.
+  const payload = Object.fromEntries(
+    Object.entries({ ...params, access_token: token }).filter(([, v]) => v !== undefined)
+  )
 
   let response
   if (method === 'GET') {
@@ -42,7 +46,15 @@ export async function fbGraph(path, { method = 'GET', params = {}, token } = {})
 
   if (!response.ok || data.error) {
     const meta = data.error || {}
-    const error = new Error(meta.message || `Facebook API error (HTTP ${response.status})`)
+    let message = meta.message || `Facebook API error (HTTP ${response.status})`
+
+    // 190 is Meta's "this token is no good any more" — expired, revoked, or the
+    // password changed. The raw text names a date and nothing to do about it.
+    if (meta.code === 190 && /expired|session/i.test(message)) {
+      message += ' — this channel needs a fresh token: open Channels, remove it and connect it again.'
+    }
+
+    const error = new Error(message)
     error.statusCode = response.status === 200 ? 502 : response.status
     error.metaCode = meta.code
     error.metaSubcode = meta.error_subcode
@@ -150,9 +162,46 @@ async function fetchPage(pageId, token) {
   })
 }
 
+/**
+ * Swaps a short-lived user token for a long-lived one.
+ *
+ * This is what decides how long a channel keeps working. A Page token takes
+ * its lifetime from the user token it was read with: read with the one-hour
+ * token the Graph API Explorer hands out, it dies in an hour — which is how a
+ * channel that published fine stopped three days later with "Session has
+ * expired". Read with a long-lived user token, the Page token never expires.
+ *
+ * Needs the Meta app's id and secret, which only the operator has, so it runs
+ * when FB_APP_ID and FB_APP_SECRET are set and is skipped otherwise. A Page
+ * token cannot be exchanged, so a failure is not an error here: it means the
+ * token pasted was already a Page token, or the pair is wrong, and the caller
+ * carries on with what it was given.
+ */
+async function toLongLived(token) {
+  const appId = process.env.FB_APP_ID?.trim()
+  const appSecret = process.env.FB_APP_SECRET?.trim()
+  if (!appId || !appSecret) return token
+
+  try {
+    const swapped = await fbGraph('oauth/access_token', {
+      params: {
+        grant_type: 'fb_exchange_token',
+        client_id: appId,
+        client_secret: appSecret,
+        fb_exchange_token: token,
+      },
+    })
+    return swapped.access_token || token
+  } catch (error) {
+    console.error('Could not extend the Facebook token:', error.message)
+    return token
+  }
+}
+
 export async function identifyPage(token, pageId = null) {
-  const trimmed = String(token ?? '').trim()
-  if (trimmed.length < 20) throw fail(400, 'That does not look like an access token')
+  const pasted = String(token ?? '').trim()
+  if (pasted.length < 20) throw fail(400, 'That does not look like an access token')
+  const trimmed = /^IGQ/i.test(pasted) ? pasted : await toLongLived(pasted)
 
   // The likeliest mistake, and the one Facebook answers most obscurely: an
   // Instagram Login token pasted into the Facebook form. It is not a Facebook
