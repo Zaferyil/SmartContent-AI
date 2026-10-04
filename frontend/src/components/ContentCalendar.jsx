@@ -12,7 +12,13 @@ import {
 import { useLanguage } from '../i18n/LanguageContext'
 import { getPlatform } from '../data/platforms'
 import { fetchPosts } from '../utils/posts'
-import { deleteScheduled, fetchSchedule, saveScheduled, saveSettings } from '../utils/schedule'
+import {
+  deleteScheduled,
+  fetchSchedule,
+  runDueNow,
+  saveScheduled,
+  saveSettings,
+} from '../utils/schedule'
 import { publishPost } from '../utils/publishPost'
 import { recommendedTimes } from '../utils/aiSchedule'
 import {
@@ -34,6 +40,15 @@ import StatusChip from './calendar/StatusChip'
 import { channelWithPlatform } from '../utils/channelLabel'
 
 const VIEWS = ['day', 'week', 'month', 'list']
+
+/** "5 minutes ago" in the interface language. */
+function runAgo(iso, language) {
+  const minutes = Math.round((Date.now() - Date.parse(iso)) / 60000)
+  const rtf = new Intl.RelativeTimeFormat(language, { numeric: 'auto' })
+  if (minutes < 60) return rtf.format(-Math.max(minutes, 0), 'minute')
+  if (minutes < 60 * 48) return rtf.format(-Math.round(minutes / 60), 'hour')
+  return rtf.format(-Math.round(minutes / 1440), 'day')
+}
 
 const fill = (template, vars) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] ?? '').toString())
@@ -58,6 +73,7 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
   const [channel, setChannel] = useState('all')
   const [drawerItem, setDrawerItem] = useState(null)
   const [aiOpen, setAiOpen] = useState(false)
+  const [checking, setChecking] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -121,6 +137,32 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
     } catch (e) {
       notify(e.message, 'warn')
       throw e
+    }
+  }
+
+  /**
+   * Runs the publisher now and says what it did, post by post.
+   *
+   * Reports the outcome of each rather than "done": the point of pressing this
+   * is to find out why something did not go out, and a bare success toast would
+   * hide the one thing worth reading.
+   */
+  const checkNow = async () => {
+    setChecking(true)
+    try {
+      const result = await runDueNow()
+      const results = result?.results ?? []
+      const failed = results.find((r) => r.error)
+
+      if (results.length === 0) notify(c.run.nothingDue)
+      else if (failed) notify(`${c.run.problem} ${failed.error}`, 'warn')
+      else notify(fill(c.run.sent, { n: results.length }))
+
+      await load()
+    } catch (e) {
+      notify(e.message, 'warn')
+    } finally {
+      setChecking(false)
     }
   }
 
@@ -321,6 +363,30 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
         <p className="mb-4 rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/60 px-4 py-3 text-[13px] font-semibold text-amber-900">
           {c.cronOff}
         </p>
+      )}
+
+      {/* Whether the automatic publisher is alive, said outright. "Nothing went
+          out" has three causes that look the same from here — it never ran, it
+          found nothing due, or every attempt failed — and this is what tells
+          them apart. */}
+      {data.cronConfigured && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2.5">
+          <p className="min-w-0 text-[13px] font-semibold text-slate-500">
+            {data.lastRun
+              ? fill(c.run.lastRun, { when: runAgo(data.lastRun.at, language) })
+              : c.run.never}
+            {data.lastRun?.error && (
+              <span className="ml-1 text-rose-600">{data.lastRun.error}</span>
+            )}
+          </p>
+          <button
+            onClick={checkNow}
+            disabled={checking}
+            className="btn-ghost shrink-0 !px-3 !py-1.5 text-[13px]"
+          >
+            {checking ? c.run.checking : c.run.button}
+          </button>
+        </div>
       )}
 
       {/* ---------- Today / next up ---------- */}

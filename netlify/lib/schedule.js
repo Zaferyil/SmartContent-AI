@@ -232,3 +232,40 @@ export async function patchScheduled(id, patch) {
     )
   )
 }
+
+const RUN_KEY = 'schedule-heartbeat'
+
+/**
+ * Writes down that the publisher ran, and what it found.
+ *
+ * Without this, "nothing was published" has three causes that look identical
+ * from outside: the scheduler never fired, it fired and found nothing due, or
+ * it fired and every attempt failed. One timestamp and a short result tells
+ * them apart. Housekeeping only, so a failure to write it is never allowed to
+ * fail the run it describes.
+ */
+export async function recordRun({ checked = 0, handled = 0, results = [], error = null }) {
+  try {
+    await updateDoc(RUN_KEY, () => [
+      {
+        at: new Date().toISOString(),
+        checked,
+        handled,
+        error,
+        results: results.slice(0, 5).map((r) => ({ state: r.state, error: r.error ?? null })),
+      },
+    ])
+  } catch (e) {
+    console.error('Could not record the publisher run:', e.message)
+  }
+}
+
+/** The last publisher run, or null if it has never run. */
+export async function readLastRun() {
+  try {
+    const { items } = await readDoc(RUN_KEY)
+    return items[0] ?? null
+  } catch {
+    return null
+  }
+}

@@ -377,6 +377,17 @@ export const translations = {
         openEditor: 'Zum vollständigen Editor',
       },
 
+      run: {
+        lastRun: 'Letzte automatische Prüfung: {when}.',
+        never:
+          'Die automatische Veröffentlichung ist noch nie gelaufen. Prüfe in Netlify unter „Functions“, ob „schedule-run“ geplant ist.',
+        button: 'Jetzt prüfen und senden',
+        checking: 'Wird geprüft …',
+        nothingDue: 'Nichts ist fällig.',
+        sent: '{n} Beitrag/Beiträge verarbeitet.',
+        problem: 'Problem:',
+      },
+
       cronOff:
         'Automatische Veröffentlichung läuft erst auf der veröffentlichten Netlify-Seite. Lokal bleiben geplante Beiträge stehen, bis du sie selbst veröffentlichst.',
 
@@ -873,6 +884,17 @@ export const translations = {
         title: 'No scheduled content yet',
         body: 'Create your first post or let AI build your publishing schedule.',
         openEditor: 'Open the full editor',
+      },
+
+      run: {
+        lastRun: 'Last automatic check: {when}.',
+        never:
+          'The automatic publisher has never run. In Netlify, check under “Functions” that “schedule-run” is scheduled.',
+        button: 'Check and send now',
+        checking: 'Checking …',
+        nothingDue: 'Nothing is due.',
+        sent: '{n} post(s) processed.',
+        problem: 'Problem:',
       },
 
       cronOff:

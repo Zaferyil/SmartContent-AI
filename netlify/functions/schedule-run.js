@@ -7,6 +7,7 @@ import {
   patchScheduled,
   NEEDS_ITS_VIDEO,
   PUBLISHABLE_PLATFORMS,
+  recordRun,
 } from '../lib/schedule.js'
 import { recordPublished } from '../lib/posts.js'
 import { deleteVideoByUrl } from '../lib/r2.js'
@@ -175,6 +176,8 @@ export const handler = async (event) => {
       }
     }
 
+    await recordRun({ checked: due.length, handled: results.length, results })
+
     return json(200, {
       ok: true,
       checked: due.length,
@@ -184,6 +187,7 @@ export const handler = async (event) => {
     })
   } catch (error) {
     console.error('Schedule run failed:', error.message)
+    await recordRun({ error: error.message, results })
     return json(error.statusCode || 500, { ok: false, error: error.message, results })
   }
 }

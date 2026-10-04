@@ -1,5 +1,5 @@
 import { json, CORS } from '../lib/instagram.js'
-import { listScheduled, PUBLISHABLE_PLATFORMS } from '../lib/schedule.js'
+import { listScheduled, PUBLISHABLE_PLATFORMS, readLastRun } from '../lib/schedule.js'
 import { readSettings } from '../lib/settings.js'
 import { requireAuth } from '../lib/auth.js'
 import { isDeployed } from '../lib/runtime.js'
@@ -21,13 +21,19 @@ export const handler = async (event) => {
   try {
     requireAuth(event)
 
-    const [items, settings] = await Promise.all([listScheduled(), readSettings()])
+    const [items, settings, lastRun] = await Promise.all([
+      listScheduled(),
+      readSettings(),
+      readLastRun(),
+    ])
 
     return json(200, {
       ok: true,
       items,
       settings,
       publishable: PUBLISHABLE_PLATFORMS,
+      // When the publisher last ran and what it found; null if it never has.
+      lastRun,
       // The cron only exists on a deployed site. Locally nothing publishes on
       // its own, and the screen has to say so instead of implying otherwise.
       cronConfigured: isDeployed(),

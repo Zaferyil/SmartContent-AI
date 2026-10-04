@@ -34,3 +34,9 @@ export const addAccount = (token, platform = 'instagram', pageId = null) =>
 
 export const removeAccount = (id) =>
   api('accounts-remove', { body: { id } }).then((data) => data.accounts)
+
+/**
+ * Runs the publisher once now: sends whatever is due and reports what happened
+ * to each post. Same work as the five-minute schedule.
+ */
+export const runDueNow = () => api('schedule-run-now', { body: {} })
