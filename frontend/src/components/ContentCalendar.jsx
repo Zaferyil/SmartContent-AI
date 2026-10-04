@@ -375,8 +375,18 @@ export default function ContentCalendar({ accounts = [], notify, onGoToCreate, o
             {data.lastRun
               ? fill(c.run.lastRun, { when: runAgo(data.lastRun.at, language) })
               : c.run.never}
-            {data.lastRun?.error && (
-              <span className="ml-1 text-rose-600">{data.lastRun.error}</span>
+            {data.lastRun && (
+              <span className="ml-1">
+                {data.lastRun.checked === 0
+                  ? c.run.noneDue
+                  : fill(c.run.found, { n: data.lastRun.checked, m: data.lastRun.handled })}
+              </span>
+            )}
+            {(data.lastRun?.error ||
+              data.lastRun?.results?.find((r) => r.error)?.error) && (
+              <span className="ml-1 text-rose-600">
+                {data.lastRun.error || data.lastRun.results.find((r) => r.error).error}
+              </span>
             )}
           </p>
           <button

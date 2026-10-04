@@ -379,6 +379,8 @@ export const translations = {
 
       run: {
         lastRun: 'Letzte automatische Prüfung: {when}.',
+        noneDue: 'Nichts war fällig.',
+        found: '{n} fällig, {m} bearbeitet.',
         never:
           'Die automatische Veröffentlichung ist noch nie gelaufen. Prüfe in Netlify unter „Functions“, ob „schedule-run“ geplant ist.',
         button: 'Jetzt prüfen und senden',
@@ -888,6 +890,8 @@ export const translations = {
 
       run: {
         lastRun: 'Last automatic check: {when}.',
+        noneDue: 'Nothing was due.',
+        found: '{n} due, {m} handled.',
         never:
           'The automatic publisher has never run. In Netlify, check under “Functions” that “schedule-run” is scheduled.',
         button: 'Check and send now',
