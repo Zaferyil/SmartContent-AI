@@ -468,7 +468,7 @@ export const translations = {
       makeDefault: 'Als Standard',
       isDefault: 'Standard',
 
-      tokenOk: 'Token gültig',
+      tokenOk: 'Verbunden – Ablaufdatum unbekannt',
       tokenValidFor: 'Token noch {days} Tage gültig',
       tokenValidForEst: 'Token noch ca. {days} Tage gültig (geschätzt)',
       expiresIn: 'Token läuft in {days} Tagen ab',
@@ -966,7 +966,7 @@ export const translations = {
       makeDefault: 'Make default',
       isDefault: 'Default',
 
-      tokenOk: 'Token valid',
+      tokenOk: 'Connected – expiry unknown',
       tokenValidFor: 'Token valid for another {days} days',
       tokenValidForEst: 'Token valid for roughly {days} more days (estimated)',
       expiresIn: 'Token expires in {days} days',
